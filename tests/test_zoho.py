@@ -95,3 +95,12 @@ def test_api_error_surfaces_message():
         return httpx2.Response(400, json={"code": 1001, "message": "Invalid vendor"})
     with pytest.raises(ERPError, match="Invalid vendor"):
         connector(failing).post_bill(bill())
+
+
+def test_demo_connector_is_idempotent(tmp_path):
+    from app.erp.demo import DemoConnector
+
+    demo = DemoConnector(str(tmp_path / "erp.json"))
+    first = demo.post_bill(bill())
+    again = demo.post_bill(bill())
+    assert first.erp_bill_id == "DEMO-1" and again.already_existed and again.erp_bill_id == "DEMO-1"

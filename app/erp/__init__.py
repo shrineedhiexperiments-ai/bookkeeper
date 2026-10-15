@@ -15,6 +15,10 @@ def get_connector() -> ERPConnector:
             from .zoho_books import ZohoBooksConnector
 
             _connector = ZohoBooksConnector(**s.zoho)
+        elif s.erp == "demo":
+            from .demo import DemoConnector
+
+            _connector = DemoConnector()
         else:
             raise ERPError(f"Unsupported ERP '{s.erp}'")
     return _connector

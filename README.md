@@ -27,12 +27,26 @@ and others plug in behind the same connector interface.
 
 ## Run it
 
+Needs Python 3.10+.
+
 ```bash
+git clone https://github.com/shrineedhiexperiments-ai/bookkeeper && cd bookkeeper
+python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env        # fill in ANTHROPIC_API_KEY, Zoho credentials, approval rules
-uvicorn app.main:app --reload
-# open http://localhost:8000, sign in with your email
+cp .env.example .env        # Windows: copy .env.example .env
 ```
+
+Edit `.env`:
+
+- **Try it first:** set `ANTHROPIC_API_KEY` and `ERP=demo`. Bills are "booked" into `data/demo_erp.json`, so no Zoho account is needed.
+- **Real use:** set `ERP=zoho_books` and fill in the Zoho settings (see below).
+- Set `APPROVAL_RULES` to your approvers' emails.
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Open http://localhost:8000 and sign in with an email address. To approve a bill, sign in as the approver it is waiting on. If SMTP isn't configured, approval emails, including the approve/reject links, are printed in the terminal.
 
 Run the tests: `python -m pytest -q`. They use a fake ERP, a mocked Zoho API and a mocked Claude endpoint, so they need no credentials.
 
