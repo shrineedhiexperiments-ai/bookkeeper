@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, money %}
+{% block title %}Vendors · Bookkeeper{% endblock %}
+{% block head %}
+<style>
+  .vhead { display:flex; align-items:center; gap:12px; margin:12px 0 22px; flex-wrap:wrap; }
+  .vhead form { margin-left:auto; width:260px; }
+  .vt tbody tr { cursor:pointer; } .vt tbody tr:hover td { background:var(--hover); }
+  .vt td:first-child, .vt th:first-child { padding-left:10px; } .vt td:last-child, .vt th:last-child { padding-right:10px; }
+  .vt tbody tr:hover td:first-child { border-radius:8px 0 0 8px; } .vt tbody tr:hover td:last-child { border-radius:0 8px 8px 0; }
+  .nm { display:flex; align-items:center; gap:10px; } .nm b { font-weight:500; }
+  .empty { text-align:center; padding:72px 16px; color:var(--muted); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="vhead">
+  <div><h1>Vendors</h1><p class="muted" style="margin:6px 0 0;font-size:14px">Everyone who has sent you a bill, built automatically from your bills.</p></div>
+  <form method="get"><input name="q" value="{{ vq }}" placeholder="Filter vendors" aria-label="Filter vendors"></form>
+</div>
+<div class="table-wrap" style="overflow-x:auto">
+<table class="vt">
+  <thead><tr><th>Vendor</th><th class="num">Bills</th><th class="num">Total billed</th><th class="num">Outstanding</th><th>Usual account</th><th>Last bill</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr onclick="location.href='/vendors/{{ r.key|urlencode }}'">
+      <td><div class="nm">{{ avatar(r.name) }}<div><a href="/vendors/{{ r.key|urlencode }}" style="color:inherit"><b>{{ r.name }}</b></a>{% if r.tax_id %}<div class="muted" style="font-size:12.5px">{{ r.tax_id }}</div>{% endif %}</div></div></td>
+      <td class="num">{{ r.n }}</td>
+      <td class="num">{{ money(r.total, r.currency) }}</td>
+      <td class="num">{% if r.outstanding %}{{ money(r.outstanding, r.currency) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td class="muted">{{ r.account or '—' }}</td>
+      <td class="muted" style="white-space:nowrap">{{ r.last.strftime('%b %d, %Y') }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" style="border:0"><div class="empty"><div style="color:var(--fg)">{{ 'No vendors match “' ~ vq ~ '”' if vq else 'No vendors yet' }}</div>
+      <div>{{ 'Try another name.' if vq else 'Vendors appear here as soon as a bill with a vendor name is read or reviewed.' }}</div></div></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, money %}
+{% block title %}Home · Bookkeeper{% endblock %}
+{% block head %}
+<style>
+  .hello { display:flex; align-items:flex-end; gap:16px; margin:16px 0 26px; flex-wrap:wrap; }
+  .hello p { margin:6px 0 0; color:var(--muted); font-size:14px; }
+  .hello .actions { margin-left:auto; display:flex; gap:8px; }
+  .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
+  .kpi { display:block; color:inherit; background:var(--card); border-radius:12px; padding:18px 20px; box-shadow:var(--shadow); }
+  a.kpi:hover { color:inherit; box-shadow:0 0 0 1px var(--line), 0 4px 16px rgba(30,30,42,.06); }
+  .kpi .k { font-size:13px; color:var(--sub); } .kpi .v { font-size:26px; letter-spacing:-.025em; margin-top:6px; font-variant-numeric:tabular-nums; } .kpi .s { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .cols { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:20px; align-items:start; }
+  .card h3 { display:flex; align-items:baseline; gap:8px; } .card h3 a { margin-left:auto; font-size:13px; font-weight:400; }
+  .task-grp { font-size:12.5px; color:var(--muted); margin:18px 0 6px; display:flex; gap:8px; align-items:center; }
+  .task-grp:first-of-type { margin-top:4px; }
+  .task-grp .n { font-size:11.5px; padding:0 6px; border-radius:5px; background:var(--chip); color:var(--sub); }
+  .task { display:flex; align-items:center; gap:12px; padding:10px 8px; margin:0 -8px; border-radius:10px; color:inherit; }
+  .task:hover { background:var(--hover); color:inherit; }
+  .task .t { min-width:0; flex:1; } .task .t b { font-weight:500; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .task .t small { color:var(--muted); font-size:12.5px; }
+  .task .amt { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .task .go { font-size:13px; padding:4px 12px; }
+  .clear { text-align:center; padding:28px 12px 12px; color:var(--muted); font-size:14px; }
+  .clear .ok { width:44px; height:44px; border-radius:50%; margin:0 auto 10px; display:grid; place-items:center; background:var(--ok-soft); color:var(--ok); font-size:20px; }
+
+  /* single-series bar chart: one hue, 4px rounded data-end, 2px gaps, hover tooltip */
+  .bars { display:flex; align-items:flex-end; gap:2px; height:168px; padding-top:22px; border-bottom:1px solid var(--line); position:relative; }
+  .bar { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; position:relative; cursor:default; }
+  .bar i { display:block; background:var(--accent); border-radius:4px 4px 0 0; min-height:2px; margin:0 6px; transition:opacity .12s; }
+  .bar.warn i { background:var(--warn); } .bar.muted i { background:var(--line); }
+  .bar.zero i { background:var(--line-2); }
+  .bars:hover .bar i { opacity:.45; } .bars .bar:hover i { opacity:1; }
+  .bar .tip { position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); background:var(--fg); color:var(--bg); font-size:12px; padding:5px 9px; border-radius:7px; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity .1s; z-index:3; }
+  .bar:hover .tip { opacity:1; }
+  .xl { display:flex; gap:2px; } .xl span { flex:1; text-align:center; font-size:11.5px; color:var(--muted); padding-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; align-items:center; padding:7px 0; color:inherit; }
+  a.hbar:hover { color:inherit; } a.hbar:hover .nm { color:var(--accent); }
+  .hbar .nm { font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hbar .val { font-size:13.5px; font-variant-numeric:tabular-nums; color:var(--sub); }
+  .hbar .track { grid-column:1 / -1; height:6px; border-radius:3px; background:var(--line-2); overflow:hidden; }
+  .hbar .track i { display:block; height:100%; border-radius:0 3px 3px 0; background:var(--accent); }
+
+  .setup { margin-bottom:24px; }
+  .setup .prog { height:6px; border-radius:3px; background:var(--line-2); margin:10px 0 6px; overflow:hidden; } .setup .prog i { display:block; height:100%; background:var(--ok); border-radius:3px; }
+  .steps { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; margin-top:14px; }
+  .stp { display:flex; gap:10px; padding:12px; border-radius:10px; box-shadow:inset 0 0 0 1px var(--line); color:inherit; font-size:14px; }
+  a.stp:hover, button.stp:hover { background:var(--hover); color:inherit; }
+  button.stp { background:none; text-align:left; font:inherit; font-size:14px; color:inherit; align-items:flex-start; border-radius:10px; }
+  .stp .c { width:20px; height:20px; border-radius:50%; flex:none; display:grid; place-items:center; font-size:11px; box-shadow:inset 0 0 0 1.5px var(--line); margin-top:1px; }
+  .stp.done .c { background:var(--ok); color:#fff; box-shadow:none; } .stp.done b { color:var(--muted); text-decoration:line-through; text-decoration-color:var(--line); }
+  .stp b { font-weight:500; display:block; } .stp small { color:var(--muted); font-size:12.5px; line-height:1.4; display:block; margin-top:2px; }
+  .feed { list-style:none; margin:0; padding:0; }
+  .feed li { display:flex; gap:12px; padding:10px 0; border-top:1px solid var(--line-2); font-size:14px; } .feed li:first-child { border-top:0; }
+  .feed .when { margin-left:auto; color:var(--muted); font-size:12.5px; white-space:nowrap; }
+  .feed a { color:inherit; } .feed a:hover { color:var(--accent); }
+  @media (max-width: 1100px) { .cols { grid-template-columns:1fr; } }
+  @media (max-width: 760px) { .kpis { grid-template-columns:1fr 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+{% set first = user.split('@')[0].split('.')[0].split('_')[0]|capitalize %}
+<div class="hello">
+  <div>
+    <h1>{{ greeting }}, {{ first }}</h1>
+    <p>{% if mine %}{{ mine|length }} bill{{ 's' if mine|length != 1 }} waiting on your approval{% elif drafts %}{{ drafts|length }} draft{{ 's' if drafts|length != 1 }} to review{% else %}You're all caught up{% endif %} · {{ today.strftime('%A, %B %-d') }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn secondary" href="/bills">View all bills</a>
+    <button type="button" onclick="bkUpload()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></svg>Upload bill</button>
+  </div>
+</div>
+
+{% set done = setup|selectattr('done')|list|length %}
+{% if done < setup|length %}
+<div class="card setup">
+  <h3 style="margin:0">Finish setting up <span class="muted" style="font-size:13px;font-weight:400">{{ done }} of {{ setup|length }} done</span></h3>
+  <div class="prog"><i style="width:{{ (done / setup|length * 100)|round }}%"></i></div>
+  {% if not has_sample %}
+  <form method="post" action="/sample/load" class="row" style="margin-top:12px;gap:8px">
+    <span class="muted" style="font-size:13.5px">Want to look around first?</span>
+    <button class="secondary" style="padding:4px 12px;font-size:13px">Explore with sample data</button>
+  </form>
+  {% endif %}
+  <div class="steps">
+    {% for s in setup %}
+      {% if s.done %}<div class="stp done"><span class="c">✓</span><div><b>{{ s.label }}</b></div></div>
+      {% elif s.upload %}<button type="button" class="stp" onclick="bkUpload()"><span class="c"></span><div><b>{{ s.label }}</b><small>{{ s.hint }}</small></div></button>
+      {% elif s.href %}<a class="stp" href="{{ s.href }}"><span class="c"></span><div><b>{{ s.label }}</b><small>{{ s.hint }}</small></div></a>
+      {% else %}<div class="stp"><span class="c"></span><div><b>{{ s.label }}</b><small>{{ s.hint }}</small></div></div>{% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="kpis">
+  {% for k in kpis %}
+  <{{ 'a' if k.href else 'div' }} class="kpi" {% if k.href %}href="{{ k.href }}"{% endif %}>
+    <div class="k">{{ k.label }}</div>
+    <div class="v">{% if k.money %}{{ money(k.value, currency) }}{% else %}{{ k.value }}{% endif %}</div>
+    <div class="s">{{ k.sub }}</div>
+  </{{ 'a' if k.href else 'div' }}>
+  {% endfor %}
+</div>
+
+<div class="cols">
+  <div>
+    <div class="card">
+      <h3>For you</h3>
+      {% if not (mine or drafts or failed) %}
+        <div class="clear"><div class="ok">✓</div><b style="font-weight:500;color:var(--fg)">You're all caught up</b><br>New bills you need to act on will show up here.</div>
+      {% endif %}
+      {% if mine %}
+        <div class="task-grp">Waiting on your approval <span class="n">{{ mine|length }}</span></div>
+        {% for b in mine[:5] %}
+        <a class="task" href="/bills/{{ b.id }}">{{ avatar(b.vendor_name or b.file_name, 32) }}
+          <span class="t"><b>{{ b.vendor_name or b.file_name }}</b><small>{{ b.bill_number or 'No invoice #' }}{% if b.due_date %} · due {{ b.due_date.strftime('%b %d') }}{% endif %}</small></span>
+          <span class="amt">{{ money(b.total, b.currency) }}</span><span class="btn go">Approve</span></a>
+        {% endfor %}
+      {% endif %}
+      {% if failed %}
+        <div class="task-grp">Failed to post <span class="n">{{ failed|length }}</span></div>
+        {% for b in failed[:3] %}
+        <a class="task" href="/bills/{{ b.id }}">{{ avatar(b.vendor_name or b.file_name, 32) }}
+          <span class="t"><b>{{ b.vendor_name or b.file_name }}</b><small style="color:var(--bad)">{{ (b.erp_error|erp_error)[:90] }}</small></span>
+          <span class="amt">{{ money(b.total, b.currency) }}</span><span class="btn secondary go">Retry</span></a>
+        {% endfor %}
+      {% endif %}
+      {% if drafts %}
+        <div class="task-grp">Drafts to review <span class="n">{{ drafts|length }}</span>{% if drafts|length > 5 %}<a href="/bills?status=inbox" style="margin-left:auto">View all</a>{% endif %}</div>
+        {% for b in drafts[:5] %}
+        <a class="task" href="/bills/{{ b.id }}/review/vendor">{{ avatar(b.vendor_name or b.file_name, 32) }}
+          <span class="t"><b>{{ b.vendor_name or b.file_name }}</b><small>{{ ((b.review_reasons or ['Ready to review'])[0]|friendly)[:80] }}</small></span>
+          <span class="amt">{{ money(b.total, b.currency) }}</span><span class="btn secondary go">Review</span></a>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Recent activity <a href="/bills">All bills</a></h3>
+      <ul class="feed">
+        {% for e in events %}
+          <li>{{ avatar(e.actor.split('@')[0] if e.actor != 'system' else 'Bookkeeper', 26) }}
+            <span><a href="/bills/{{ e.bill_id }}"><b style="font-weight:500">{{ e.bill.vendor_name or e.bill.file_name }}</b></a>
+              <span class="muted">· {{ e.action|event }}{% if e.actor != 'system' %} by {{ e.actor.split('@')[0] }}{% endif %}</span></span>
+            <span class="when">{{ e.at.strftime('%b %d, %H:%M') }}</span></li>
+        {% else %}<li class="muted">No activity yet.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h3>Cash out <span class="muted" style="font-size:13px;font-weight:400">outstanding bills by due date · {{ currency }}</span></h3>
+      <div class="bars" role="img" aria-label="Outstanding bills by due week">
+        {% for b in forecast %}
+          <div class="bar {{ b.tone }} {{ 'zero' if not b.amount }}" tabindex="0">
+            <span class="tip">{{ b.label }}: {{ money(b.amount, currency) }} · {{ b.n }} bill{{ 's' if b.n != 1 }}</span>
+            <i style="height:{{ (b.amount / peak * 100)|round(1) if b.amount else 1 }}%"></i>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="xl">{% for b in forecast %}<span title="{{ b.label }}">{{ b.label.replace('No due date', 'No date') }}</span>{% endfor %}</div>
+      {% set od = forecast[0] %}
+      <p class="muted" style="font-size:13px;margin:14px 0 0">{% if od.amount %}<span style="color:var(--warn)">{{ money(od.amount, currency) }} overdue</span> across {{ od.n }} bill{{ 's' if od.n != 1 }}. {% endif %}Hover a bar for details.</p>
+    </div>
+
+    <div class="card">
+      <h3>Top vendors <span class="muted" style="font-size:13px;font-weight:400">last 90 days</span><a href="/vendors">All vendors</a></h3>
+      {% for v in top_vendors %}
+        <a class="hbar" href="/vendors/{{ v.name|lower|urlencode }}"><span class="nm">{{ v.name }}</span><span class="val">{{ money(v.amount, currency) }}</span>
+          <span class="track"><i style="width:{{ (v.amount / top_peak * 100)|round(1) }}%"></i></span></a>
+      {% else %}
+        <p class="muted" style="font-size:14px;margin:0">Vendors appear here once bills are submitted for approval.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

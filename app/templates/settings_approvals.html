@@ -1,0 +1,9 @@
+{% extends "settings_base.html" %}
+{% from "_macros.html" import rules %}
+{% block title %}Approval rules · Bookkeeper{% endblock %}
+{% block settings %}
+<h1>Approval rules</h1>
+<p class="lede">The first rule a bill's total fits decides who approves it. Approvers sign off in order, and each gets an email with one-click approve and reject links.</p>
+<div class="card" style="padding:0">{{ rules(tiers) }}</div>
+<p class="muted" style="font-size:13px">Rules are read from <code>APPROVAL_RULES</code> in .env. Bills keep the approval chain they were submitted with, so changing rules doesn't affect bills already in approval.</p>
+{% endblock %}

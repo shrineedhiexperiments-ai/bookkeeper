@@ -1,0 +1,33 @@
+{% macro avatar(name, size=28) -%}
+  {%- set n = (name or '?').strip() or '?' -%}
+  {%- set parts = n.split() -%}
+  <span class="avatar" style="width:{{ size }}px;height:{{ size }}px;font-size:{{ (size * 0.4)|round|int }}px">{{ parts[0][:1]|upper }}{{ parts[1][:1]|upper if parts|length > 1 }}</span>
+{%- endmacro %}
+
+{# Mercury-style amount: $1,234 with superscript cents. #}
+{% macro money(amount, currency=None) -%}
+  {%- if amount is none -%}<span class="muted">—</span>
+  {%- else -%}
+    {%- set sym = {'USD': '$', 'EUR': '€', 'GBP': '£', 'INR': '₹', 'JPY': '¥', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$'}.get((currency or 'USD')|upper) -%}
+    {%- set whole = '{:,.2f}'.format(amount).split('.') -%}
+    <span style="white-space:nowrap">{% if amount < 0 %}−{% endif %}{{ sym if sym else (currency ~ ' ') }}{{ whole[0].lstrip('-') }}<sup class="c">.{{ whole[1] }}</sup></span>
+  {%- endif -%}
+{%- endmacro %}
+
+{# Approval tiers as Mercury-style sentences, in a bordered numbered list. #}
+{% macro rules(tiers) -%}
+<div class="rules">
+  {%- set ns = namespace(prev=None) -%}
+  {%- for t in tiers %}
+  <div class="rule"><span class="num">{{ loop.index }}</span><span>
+    {%- if ns.prev is none and t.max_amount is none %}For every bill,
+    {%- elif ns.prev is none %}If amount is up to <b>{{ '{:,.2f}'.format(t.max_amount) }}</b>,
+    {%- elif t.max_amount is none %}If amount is over <b>{{ '{:,.2f}'.format(ns.prev) }}</b>,
+    {%- else %}If amount is over <b>{{ '{:,.2f}'.format(ns.prev) }}</b> and up to <b>{{ '{:,.2f}'.format(t.max_amount) }}</b>,
+    {%- endif %}
+    {% if t.approvers %}require approval from {% for a in t.approvers %}<b>{{ a }}</b>{% if not loop.last %}, then {% endif %}{% endfor %}
+    {%- else %}<b>approve automatically</b>{% endif %}</span></div>
+  {%- set ns.prev = t.max_amount -%}
+  {%- endfor %}
+</div>
+{%- endmacro %}

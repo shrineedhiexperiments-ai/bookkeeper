@@ -1,122 +1,122 @@
 {% extends "base.html" %}
+{% from "_macros.html" import avatar, money %}
 {% block title %}Bill {{ bill.id }} · Bookkeeper{% endblock %}
+{% block head %}
+{% include "_flow_styles.html" %}
+<style>
+  .bhead { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+  .bhead h2 { margin:0; font-size:22px; }
+  .track { display:flex; align-items:center; margin:0 0 22px; }
+  .track .s { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); flex:none; }
+  .track .n { width:18px; height:18px; border-radius:50%; display:grid; place-items:center; font-size:10.5px; box-shadow:inset 0 0 0 1.25px var(--line); }
+  .track .done { color:var(--sub); } .track .done .n { background:var(--fg); color:var(--bg); box-shadow:none; }
+  .track .cur { color:var(--fg); } .track .cur .n { background:var(--accent); color:#fff; box-shadow:none; }
+  .track .fail { color:var(--bad); } .track .fail .n { background:var(--bad); color:#fff; box-shadow:none; }
+  .track .bar { flex:1; height:1px; background:var(--line); margin:0 8px; min-width:10px; } .track .bar.done { background:var(--fg); }
+  .act { border-radius:12px; padding:16px; margin-bottom:22px; background:var(--accent-soft); }
+  .act b { font-weight:500; } .act .row { margin-top:12px; }
+  .act input { background:var(--card); }
+  .chainv { list-style:none; margin:6px 0 0; padding:0; }
+  .chainv li { display:flex; align-items:center; gap:10px; padding:7px 0; font-size:14px; }
+  .chainv .d { width:18px; height:18px; border-radius:50%; display:grid; place-items:center; font-size:10px; box-shadow:inset 0 0 0 1.25px var(--line); color:var(--muted); flex:none; }
+  .chainv .ok .d { background:var(--ok); color:#fff; box-shadow:none; } .chainv .now .d { background:var(--accent); color:#fff; box-shadow:none; }
+  .chainv .now { font-weight:500; } .chainv small { color:var(--muted); margin-left:auto; }
+  .tl { list-style:none; margin:6px 0 0; padding:0; }
+  .tl li { position:relative; padding:0 0 14px 20px; font-size:13.5px; }
+  .tl li::before { content:""; position:absolute; left:3px; top:7px; width:7px; height:7px; border-radius:50%; background:var(--line); }
+  .tl li::after { content:""; position:absolute; left:6px; top:16px; bottom:0; width:1px; background:var(--line-2); }
+  .tl li:last-child::after { display:none; } .tl li:first-child::before { background:var(--accent); }
+  .tl .when { color:var(--muted); font-size:12px; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="row" style="margin-bottom:12px">
-  <a href="/bills">← Bills</a>
-  <h2 style="margin:0 8px">Bill #{{ bill.id }} — {{ bill.vendor_name or bill.file_name }}</h2>
-  <span class="pill s-{{ bill.status.value }}">{{ bill.status.value.replace('_',' ') }}</span>
-</div>
-
-{% if error %}<div class="alert err">{{ error }}</div>{% endif %}
-{% if bill.review_reasons %}
-<div class="alert warn"><b>Needs review:</b>
-  <ul style="margin:4px 0 0">{% for r in bill.review_reasons %}<li>{{ r }}</li>{% endfor %}</ul>
-</div>
-{% endif %}
-{% if bill.status.value == 'post_failed' %}
-<div class="alert err"><b>Posting to ERP failed:</b> {{ bill.erp_error }}
-  <form method="post" action="/bills/{{ bill.id }}/retry-post" style="margin-top:8px"><button>Retry posting</button></form>
-</div>
-{% elif bill.status.value == 'posted' %}
-<div class="alert" style="background:#e2f4ea;color:#1d7f4e">Booked in {{ bill.erp }} as bill <b>{{ bill.erp_bill_id }}</b>.
-  {% if bill.erp_error %}<br>Warnings: {{ bill.erp_error }}{% endif %}</div>
-{% endif %}
-
-<div class="split">
-  <div class="card" style="padding:0;overflow:hidden;min-height:600px">
-    {% if bill.mime_type == 'application/pdf' %}
-      <iframe src="/bills/{{ bill.id }}/file" style="width:100%;height:80vh;border:0" title="Bill document"></iframe>
-    {% else %}
-      <img src="/bills/{{ bill.id }}/file" alt="Bill document" style="width:100%">
-    {% endif %}
-  </div>
-
-  <div>
-    {% if can_act %}
-    <div class="card">
-      <div class="row">
-        <strong>Your approval is needed</strong>
-        <span class="muted">step {{ bill.current_step + 1 }} of {{ bill.approvers|length }}</span>
+{% set st = bill.status.value %}
+<div class="flow">
+  <div class="flow-left">
+    <div class="flow-top">
+      <a class="ws" href="/bills"><span class="logo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 4h7a4 4 0 0 1 0 8H7zM7 12h8a4 4 0 0 1 0 8H7z"/></svg></span>Bookkeeper</a>
+      <a class="esc" href="/bills" id="esc"><kbd>Esc</kbd><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></a>
+    </div>
+    <div class="flow-body">
+      <div class="bhead">
+        {{ avatar(bill.vendor_name or bill.file_name, 36) }}
+        <div style="min-width:0"><h2 style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ bill.vendor_name or bill.file_name }}</h2>
+          <div class="muted" style="font-size:13px">Bill #{{ bill.id }}{% if bill.bill_number %} · {{ bill.bill_number }}{% endif %}</div></div>
+        <span class="pill s-{{ st }}" style="margin-left:auto">{{ st.replace('_',' ')|capitalize }}</span>
       </div>
-      <div class="row" style="margin-top:10px">
-        <form method="post" action="/bills/{{ bill.id }}/approve"><button>Approve</button></form>
-        <form method="post" action="/bills/{{ bill.id }}/reject" class="row" style="flex:1">
-          <input name="reason" placeholder="Reason for rejection" style="flex:1">
-          <button class="danger">Reject</button>
+
+      {% set cur = {'received': 0, 'needs_review': 0, 'pending_approval': 1, 'approved': 2, 'post_failed': 2, 'posted': 3, 'rejected': 1}[st] %}
+      <div class="track">
+        {% for label in ['Draft', 'Approval', 'Posting', 'Posted'] %}{% set i = loop.index0 %}
+          {% set failed = (st == 'post_failed' and i == 2) or (st == 'rejected' and i == 1) %}
+          <span class="s {{ 'fail' if failed else ('done' if i < cur or st == 'posted' else ('cur' if i == cur else '')) }}">
+            <span class="n">{% if failed %}!{% elif i < cur or st == 'posted' %}✓{% else %}{{ i + 1 }}{% endif %}</span>{{ 'Rejected' if st == 'rejected' and i == 1 else label }}</span>
+          {% if not loop.last %}<span class="bar {{ 'done' if i < cur }}"></span>{% endif %}
+        {% endfor %}
+      </div>
+
+      {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+      {% if st == 'post_failed' %}
+        <div class="alert err"><b>Posting to {{ (bill.erp or 'your accounting system')|replace('zoho_books', 'Zoho Books') }} failed.</b> {{ bill.erp_error|erp_error }}
+          <form method="post" action="/bills/{{ bill.id }}/retry-post" style="margin-top:10px"><button>Retry posting</button></form></div>
+      {% elif st == 'posted' %}
+        <div class="alert ok">Booked in {{ (bill.erp or '')|replace('zoho_books', 'Zoho Books') }} as bill <b>{{ bill.erp_bill_id }}</b>.{% if bill.erp_error %}<br>Warnings: {{ bill.erp_error }}{% endif %}</div>
+      {% endif %}
+
+      {% if can_act %}
+      <div class="act">
+        <b>Your approval is needed</b> <span class="muted" style="font-size:13px">· step {{ bill.current_step + 1 }} of {{ bill.approvers|length }}</span>
+        <form method="post" action="/bills/{{ bill.id }}/reject" class="row" id="rejectform">
+          <input name="reason" placeholder="Reason, if rejecting" style="flex:1;min-width:160px">
+          <button class="ghost" style="box-shadow:inset 0 0 0 1px var(--line)">Reject</button>
+          <button formaction="/bills/{{ bill.id }}/approve">Approve</button>
         </form>
       </div>
-    </div>
-    {% elif bill.status.value == 'pending_approval' %}
-    <div class="card muted">Waiting on <b>{{ bill.pending_approver }}</b> (step {{ bill.current_step + 1 }} of {{ bill.approvers|length }}).</div>
-    {% endif %}
-
-    <form method="post" action="/bills/{{ bill.id }}/edit" class="card">
-      <fieldset {% if not editable %}disabled{% endif %} style="border:0;padding:0;margin:0">
-      <div class="grid">
-        <div><label>Vendor</label><input name="vendor_name" value="{{ bill.vendor_name or '' }}"></div>
-        <div><label>Vendor tax ID</label><input name="vendor_tax_id" value="{{ bill.vendor_tax_id or '' }}"></div>
-        <div><label>Bill number</label><input name="bill_number" value="{{ bill.bill_number or '' }}"></div>
-        <div><label>Bill date</label><input type="date" name="bill_date" value="{{ bill.bill_date or '' }}"></div>
-        <div><label>Due date</label><input type="date" name="due_date" value="{{ bill.due_date or '' }}"></div>
-        <div><label>Currency</label><input name="currency" maxlength="3" value="{{ bill.currency or '' }}"></div>
-        <div><label>Tax total</label><input name="tax_total" inputmode="decimal" value="{{ bill.tax_total if bill.tax_total is not none else '' }}"></div>
-        <div><label>Total</label><input name="total" inputmode="decimal" value="{{ bill.total if bill.total is not none else '' }}"></div>
-      </div>
-
-      <h3>Line items</h3>
-      <datalist id="accounts">{% for a in accounts %}<option value="{{ a }}">{% endfor %}</datalist>
-      <table>
-        <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Tax %</th><th>Account</th><th class="num">Amount</th></tr></thead>
-        <tbody>
-        {% for l in bill.lines %}
-          <tr>
-            <td><input name="line_description" value="{{ l.description }}"></td>
-            <td><input name="line_quantity" value="{{ l.quantity }}" style="width:70px"></td>
-            <td><input name="line_unit_price" value="{{ l.unit_price }}" style="width:100px"></td>
-            <td><input name="line_tax_rate" value="{{ l.tax_rate if l.tax_rate is not none else '' }}" style="width:70px"></td>
-            <td><input name="line_account" list="accounts" value="{{ l.account_name or '' }}" style="min-width:170px"></td>
-            <td class="num">{{ '{:,.2f}'.format(l.amount) }}</td>
-          </tr>
-        {% endfor %}
-        {% if editable %}
-          <tr>
-            <td><input name="line_description" placeholder="Add line…"></td>
-            <td><input name="line_quantity" style="width:70px"></td>
-            <td><input name="line_unit_price" style="width:100px"></td>
-            <td><input name="line_tax_rate" style="width:70px"></td>
-            <td><input name="line_account" list="accounts"></td>
-            <td></td>
-          </tr>
-        {% endif %}
-        </tbody>
-      </table>
-      <p><label>Notes</label><textarea name="notes" rows="2">{{ bill.notes or '' }}</textarea></p>
-      {% if editable %}
-      <div class="row">
-        <button name="submit" value="1">Save &amp; submit for approval</button>
-        <button class="secondary">Save draft</button>
-      </div>
+      {% elif st in ('received', 'needs_review') %}
+      <div class="act" style="background:var(--warn-soft)"><b>This bill is a draft.</b>
+        <div class="row"><a class="btn" href="/bills/{{ bill.id }}/review/vendor">Review bill</a></div></div>
       {% endif %}
-      </fieldset>
-    </form>
 
-    {% if editable %}
-    <div class="card row">
-      <form method="post" action="/bills/{{ bill.id }}/submit"><button class="secondary">Submit as-is (I've checked it)</button></form>
-      <form method="post" action="/bills/{{ bill.id }}/reject" class="row">
-        <input type="hidden" name="reason" value="discarded in review"><button class="danger">Discard</button>
-      </form>
-    </div>
-    {% endif %}
+      <div class="summary">
+        <div class="who">Bill from {{ bill.vendor_name or 'unknown vendor' }}</div>
+        <div class="amt">{{ money(bill.total, bill.currency) }}</div>
+      </div>
+      <div class="kv"><span>Invoice number</span><span>{{ bill.bill_number or '—' }}</span></div>
+      <div class="kv"><span>Invoice date</span><span>{{ bill.bill_date.strftime('%b %d, %Y') if bill.bill_date else '—' }}</span></div>
+      <div class="kv"><span>Due date</span><span>{{ bill.due_date.strftime('%b %d, %Y') if bill.due_date else '—' }}</span></div>
+      {% if bill.vendor_tax_id %}<div class="kv"><span>Tax ID</span><span>{{ bill.vendor_tax_id }}</span></div>{% endif %}
+      {% if bill.tax_total %}<div class="kv"><span>Tax</span><span>{{ money(bill.tax_total, bill.currency) }}</span></div>{% endif %}
+      {% if bill.notes %}<div class="kv"><span>Internal note</span><span>{{ bill.notes }}</span></div>{% endif %}
 
-    <div class="card">
-      <h3 style="margin-top:0">History</h3>
-      <table>
-        {% for e in bill.events|reverse %}
-          <tr><td class="muted" style="white-space:nowrap">{{ e.at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ e.actor }}</td><td><b>{{ e.action.replace('_',' ') }}</b> {{ e.detail or '' }}</td></tr>
+      <div class="grp">Accounting</div>
+      {% for l in bill.lines %}
+        <div class="kv"><span>{{ l.description }}<br><small>{{ l.account_name or 'No account' }}{% if l.tax_rate %} · {{ l.tax_rate|round(2) }}% tax{% endif %}</small></span><span>{{ money(l.amount, bill.currency) }}</span></div>
+      {% else %}<div class="kv"><span>No line items</span><span></span></div>{% endfor %}
+
+      {% if bill.approvers %}
+      <div class="grp">Approvals</div>
+      <ul class="chainv">
+        {% for a in bill.approvers %}{% set i = loop.index0 %}
+          {% set done = i < bill.current_step or st in ('approved', 'posted', 'post_failed') %}
+          {% set now = st == 'pending_approval' and i == bill.current_step %}
+          <li class="{{ 'ok' if done else ('now' if now else '') }}"><span class="d">{{ '✓' if done else i + 1 }}</span>{{ a }}
+            <small>{{ 'Approved' if done else ('Waiting' if now else ('Rejected' if st == 'rejected' and i == bill.current_step else '')) }}</small></li>
         {% endfor %}
-      </table>
+      </ul>
+      {% endif %}
+
+      <div class="grp">Activity</div>
+      <ul class="tl">
+        {% for e in bill.events|reverse %}
+          <li><div><b style="font-weight:500">{{ e.action|event }}</b> {{ e.detail or '' }}</div>
+            <div class="when">{{ e.at.strftime('%b %d, %Y · %H:%M') }} · {{ e.actor }}</div></li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
+  {% include "_docviewer.html" %}
 </div>
+<script>
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !e.target.closest('input,textarea,select')) location.href = document.getElementById('esc').href; });
+</script>
 {% endblock %}

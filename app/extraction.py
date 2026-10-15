@@ -63,7 +63,10 @@ def extract_bill(
     accounts: list[str],
     client: anthropic.Anthropic | None = None,
 ) -> ExtractedBill:
-    client = client or anthropic.Anthropic()
+    if client is None:
+        # Organization-level keys must name a workspace on every request.
+        workspace = get_settings().anthropic_workspace_id
+        client = anthropic.Anthropic(default_headers={"anthropic-workspace-id": workspace} if workspace else None)
     prompt = "Chart of accounts:\n" + ("\n".join(f"- {a}" for a in accounts) or "(none available)")
     prompt += "\n\nExtract this bill."
 

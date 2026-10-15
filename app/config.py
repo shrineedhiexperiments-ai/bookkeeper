@@ -31,6 +31,7 @@ class Settings:
     app_base_url: str
     secret_key: str
     anthropic_model: str
+    anthropic_workspace_id: str | None
     approval_tiers: list[ApprovalTier]
     erp: str
     imap: dict = field(default_factory=dict)
@@ -54,6 +55,7 @@ def get_settings() -> Settings:
         app_base_url=env("APP_BASE_URL", "http://localhost:8000").rstrip("/"),
         secret_key=env("SECRET_KEY", "dev-secret-change-me"),
         anthropic_model=env("ANTHROPIC_MODEL", "claude-opus-5-5"),
+        anthropic_workspace_id=env("ANTHROPIC_WORKSPACE_ID") or None,
         approval_tiers=_tiers(env("APPROVAL_RULES", '[{"max_amount": null, "approvers": []}]')),
         erp=env("ERP", "zoho_books"),
         imap={

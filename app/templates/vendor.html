@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, money %}
+{% block title %}{{ v.name }} · Vendors · Bookkeeper{% endblock %}
+{% block head %}
+<style>
+  .crumb { font-size:14px; color:var(--muted); margin:12px 0 16px; } .crumb a { color:var(--muted); } .crumb a:hover { color:var(--fg); }
+  .vh { display:flex; align-items:center; gap:16px; margin-bottom:26px; flex-wrap:wrap; }
+  .vh .meta { color:var(--muted); font-size:14px; margin-top:4px; }
+  .vh .actions { margin-left:auto; display:flex; gap:8px; }
+  .grid4 { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
+  .tile { background:var(--card); border-radius:12px; padding:18px 20px; box-shadow:var(--shadow); }
+  .tile .k { font-size:13px; color:var(--sub); } .tile .v { font-size:24px; letter-spacing:-.02em; margin-top:6px; font-variant-numeric:tabular-nums; }
+  .cols { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:20px; align-items:start; }
+  .bars { display:flex; align-items:flex-end; gap:2px; height:140px; padding-top:22px; border-bottom:1px solid var(--line); }
+  .bar { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; position:relative; }
+  .bar i { display:block; background:var(--accent); border-radius:4px 4px 0 0; min-height:2px; margin:0 10px; }
+  .bar.zero i { background:var(--line-2); }
+  .bars:hover .bar i { opacity:.45; } .bars .bar:hover i { opacity:1; }
+  .bar .tip { position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); background:var(--fg); color:var(--bg); font-size:12px; padding:5px 9px; border-radius:7px; white-space:nowrap; opacity:0; pointer-events:none; }
+  .bar:hover .tip { opacity:1; }
+  .xl { display:flex; gap:2px; } .xl span { flex:1; text-align:center; font-size:11.5px; color:var(--muted); padding-top:6px; }
+  .kv { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-top:1px solid var(--line-2); font-size:14px; } .kv:first-of-type { border-top:0; }
+  .kv span:first-child { color:var(--muted); }
+  .bt tbody tr { cursor:pointer; } .bt tbody tr:hover td { background:var(--hover); }
+  .pill.overdue { background:var(--warn-soft); color:var(--warn); }
+  @media (max-width: 1000px) { .cols { grid-template-columns:1fr; } .grid4 { grid-template-columns:1fr 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="crumb"><a href="/vendors">Vendors</a> / {{ v.name }}</div>
+<div class="vh">
+  {{ avatar(v.name, 48) }}
+  <div><h1 style="font-size:28px">{{ v.name }}</h1><div class="meta">Vendor since {{ v.first.strftime('%b %Y') }}{% if v.tax_id %} · {{ v.tax_id }}{% endif %}</div></div>
+  <div class="actions"><a class="btn secondary" href="/bills?q={{ ('vendor:"' ~ v.name ~ '"')|urlencode }}">See in Bookit</a></div>
+</div>
+<div class="grid4">
+  <div class="tile"><div class="k">Total billed</div><div class="v">{{ money(v.total, v.currency) }}</div></div>
+  <div class="tile"><div class="k">Outstanding</div><div class="v">{{ money(v.outstanding, v.currency) }}</div></div>
+  <div class="tile"><div class="k">Bills</div><div class="v">{{ v.n }}</div></div>
+  <div class="tile"><div class="k">Average bill</div><div class="v">{{ money(v.avg, v.currency) }}</div></div>
+</div>
+<div class="cols">
+  <div class="card">
+    <h3>Bills</h3>
+    <div style="overflow-x:auto"><table class="bt">
+      <thead><tr><th>Bill date</th><th>Invoice #</th><th>Status</th><th class="num">Amount</th><th>Due</th></tr></thead>
+      <tbody>
+      {% for b in v.bills %}
+        {% set od = b.status in outstanding and b.due_date and b.due_date < today %}
+        <tr onclick="location.href='/bills/{{ b.id }}'">
+          <td>{{ b.bill_date.strftime('%b %d, %Y') if b.bill_date else '—' }}</td>
+          <td><a href="/bills/{{ b.id }}" style="color:inherit">{{ b.bill_number or '—' }}</a></td>
+          <td>{% if od %}<span class="pill overdue">Overdue</span>{% else %}<span class="pill s-{{ b.status.value }}">{{ b.status.value.replace('_',' ')|capitalize }}</span>{% endif %}</td>
+          <td class="num">{{ money(b.total, b.currency) }}</td>
+          <td class="muted">{{ b.due_date.strftime('%b %d') if b.due_date else '—' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  <div>
+    <div class="card">
+      <h3>Billed per month <span class="muted" style="font-size:13px;font-weight:400">{{ v.currency }}</span></h3>
+      <div class="bars" role="img" aria-label="Amount billed per month, last 6 months">
+        {% for m in v.months %}<div class="bar {{ 'zero' if not m.amount }}" tabindex="0"><span class="tip">{{ m.label }}: {{ money(m.amount, v.currency) }}</span>
+          <i style="height:{{ (m.amount / v.month_peak * 100)|round(1) if m.amount else 1 }}%"></i></div>{% endfor %}
+      </div>
+      <div class="xl">{% for m in v.months %}<span>{{ m.label }}</span>{% endfor %}</div>
+    </div>
+    <div class="card">
+      <h3>Details</h3>
+      <div class="kv"><span>Usual account</span><span>{{ v.account or 'Learned after the first posted bill' }}</span></div>
+      <div class="kv"><span>Tax ID</span><span>{{ v.tax_id or '—' }}</span></div>
+      <div class="kv"><span>Currency</span><span>{{ v.currency }}</span></div>
+      <div class="kv"><span>First bill</span><span>{{ v.first.strftime('%b %d, %Y') }}</span></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

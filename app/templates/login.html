@@ -1,11 +1,25 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+  .auth { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 16px; background:var(--side); }
+  .auth .mark { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:500; margin-bottom:36px; color:var(--fg); }
+  .auth .logo { width:30px; height:30px; border-radius:8px; }
+  .auth form { width:100%; max-width:400px; background:var(--card); border-radius:16px; padding:36px 32px 32px; box-shadow:var(--pop); }
+  .auth h1 { font-size:26px; margin-bottom:6px; }
+  .auth button { width:100%; justify-content:center; padding:10px; font-size:15px; margin-top:20px; }
+  .auth .foot { margin-top:28px; font-size:13px; color:var(--muted); text-align:center; max-width:360px; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card" style="max-width:380px;margin:60px auto">
-  <h2 style="margin-top:0">Sign in</h2>
+<div class="auth">
+  <div class="mark"><span class="logo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 4h7a4 4 0 0 1 0 8H7zM7 12h8a4 4 0 0 1 0 8H7z"/></svg></span>Bookkeeper</div>
   <form method="post" action="/login">
-    <label>Work email</label>
-    <input name="email" type="email" required autofocus>
-    <p><button>Continue</button></p>
+    <h1>Log in</h1>
+    <p class="muted" style="margin:0 0 26px;font-size:14px">Bills in, books done. Use your work email to continue.</p>
+    <label for="email">Email</label>
+    <input name="email" id="email" type="email" required autofocus placeholder="you@company.com">
+    <button>Continue</button>
   </form>
+  <p class="foot">Bills are read automatically, routed for approval and posted to your accounting system.</p>
 </div>
 {% endblock %}

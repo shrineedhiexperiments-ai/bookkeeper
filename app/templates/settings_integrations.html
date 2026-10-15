@@ -1,0 +1,65 @@
+{% extends "settings_base.html" %}
+{% block title %}Integrations · Bookkeeper{% endblock %}
+{% block settings %}
+{% set zoho_label = {'connected': ('Connected', 'ok'), 'failed': ('Connection failed', 'bad'), 'untested': ('Not tested', 'idle'), 'available': ('', '')}[zoho_state] %}
+{% set catalog = [
+  {'id': 'zoho_books', 'name': 'Zoho Books', 'mark': 'Z', 'color': '#d83a2e', 'desc': 'Post approved bills, vendors and attachments to your books', 'cat': 'Accounting', 'href': '/settings/integrations/zoho_books'},
+  {'id': 'quickbooks', 'name': 'QuickBooks Online', 'mark': 'QB', 'color': '#2b9a3e', 'desc': 'Post approved bills to QuickBooks', 'cat': 'Accounting', 'soon': true},
+  {'id': 'xero', 'name': 'Xero', 'mark': 'X', 'color': '#1aa3d6', 'desc': 'Post approved bills as Xero payables', 'cat': 'Accounting', 'soon': true},
+  {'id': 'netsuite', 'name': 'NetSuite', 'mark': 'N', 'color': '#3a4a5c', 'desc': 'Post vendor bills to NetSuite', 'cat': 'Accounting', 'soon': true},
+  {'id': 'imap', 'name': 'Email inbox', 'mark': '@', 'color': '#6a5ae0', 'desc': 'Pick up bills sent to your bills@ mailbox', 'cat': 'Email', 'href': '/settings/email', 'on': imap_on},
+  {'id': 'webhook', 'name': 'Email forwarding', 'mark': '↪', 'color': '#8a63d2', 'desc': 'Receive bills from Postmark, SendGrid, Mailgun or Cloudflare', 'cat': 'Email', 'href': '/settings/email'},
+  {'id': 'smtp', 'name': 'Approver emails', 'mark': '✉', 'color': '#c06a2b', 'desc': 'Send one-click approve and reject links to approvers', 'cat': 'Notifications', 'href': '/settings/email', 'on': smtp_on},
+] %}
+
+<h1>Integrations</h1>
+<p class="lede">Connect your accounting system and email so bills flow in and out without manual work.</p>
+
+<div class="sec-title">Active integrations</div>
+<p class="sec-sub">Integrations that are set up and in use.</p>
+<div class="list">
+  {% set active = [] %}
+  {% if erp.configured %}{% set _ = active.append(catalog[0]) %}{% endif %}
+  {% for c in catalog if c.get('on') %}{% set _ = active.append(c) %}{% endfor %}
+  {% for c in active %}
+  <a class="item" href="{{ c.href }}">
+    <span class="nm"><span class="lg" style="background:{{ c.color }}">{{ c.mark }}</span>{{ c.name }}</span>
+    <span class="desc">{{ c.desc }}</span>
+    <span>{% if c.id == 'zoho_books' %}<span class="state {{ zoho_label[1] }}">{{ zoho_label[0] }}</span>{% else %}<span class="state ok">Connected</span>{% endif %}</span>
+    <span class="act"><span style="color:var(--accent)">View {{ c.name }}</span></span>
+  </a>
+  {% else %}
+  <div class="item" style="grid-template-columns:1fr"><span class="muted">Nothing connected yet. Start with your accounting system below.</span></div>
+  {% endfor %}
+</div>
+
+<div class="sec-title">Browse all integrations</div>
+<p class="sec-sub">Everything Bookkeeper can connect to.</p>
+<div class="chips" id="chips">
+  {% for c in ['All', 'Accounting', 'Email', 'Notifications'] %}<button type="button" class="{{ 'on' if loop.first }}" data-cat="{{ c }}">{{ c }}</button>{% endfor %}
+</div>
+<div class="list" id="catalog">
+  {% for c in catalog %}
+  {% set tag = 'a' if c.href else 'div' %}
+  <{{ tag }} class="item" data-cat="{{ c.cat }}" {% if c.href %}href="{{ c.href }}"{% endif %}>
+    <span class="nm"><span class="lg" style="background:{{ c.color }}{% if c.soon %};opacity:.55{% endif %}">{{ c.mark }}</span>{{ c.name }}</span>
+    <span class="desc">{{ c.desc }}</span>
+    <span class="cat">{{ c.cat }}</span>
+    <span class="act">
+      {% if c.soon %}<span class="soon">Coming soon</span>
+      {% elif c.id == 'zoho_books' %}{% if erp.configured %}<span class="btn secondary">Manage</span>{% else %}<span class="btn">Connect</span>{% endif %}
+      {% elif c.get('on') %}<span class="state ok">Connected</span>
+      {% else %}<span class="btn secondary">Set up</span>{% endif %}
+    </span>
+  </{{ tag }}>
+  {% endfor %}
+</div>
+
+<script>
+  document.getElementById('chips').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#chips button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('#catalog .item').forEach(r => r.style.display = (b.dataset.cat === 'All' || r.dataset.cat === b.dataset.cat) ? '' : 'none');
+  });
+</script>
+{% endblock %}

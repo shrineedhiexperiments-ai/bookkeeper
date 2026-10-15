@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card" style="max-width:460px;margin:40px auto">
+<div style="min-height:100vh;display:grid;place-items:center;padding:20px"><div class="card" style="max-width:460px;width:100%">
   {% if stale %}
     <p>This approval step has already been handled. Bill is <b>{{ bill.status.value.replace('_',' ') }}</b>.</p>
   {% else %}
@@ -14,5 +14,5 @@
       <button class="{{ 'danger' if action == 'reject' else '' }}">Confirm {{ action }}</button>
     </form>
   {% endif %}
-</div>
+</div></div>
 {% endblock %}

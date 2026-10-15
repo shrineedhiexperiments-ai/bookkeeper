@@ -1,0 +1,47 @@
+{% from "_macros.html" import rules %}
+{% set back = '/bills' ~ ('?status=' ~ status if status else '') %}
+{% set zoho_st = {'connected': ('Connected', 'ok'), 'failed': ('Connection failed', 'bad'), 'untested': ('Not tested', 'idle'), 'available': ('Not connected', 'off')}[zoho_state] %}
+<div class="modal-bg" id="modal-bg" data-back="{{ back }}">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bp-title">
+    <a class="close" href="{{ back }}" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></a>
+    <h2 id="bp-title">Bookit settings</h2>
+    <div class="muted" style="font-size:13px">Changes apply to every new bill.</div>
+
+    <div class="msec">
+      <div class="hd"><span>Bill forwarding email</span><a href="/settings/email">Edit</a></div>
+      <div class="ds">Bills forwarded to this email automatically show up in your inbox.</div>
+      {% if imap_on %}
+      <div class="copybox"><span id="fwd">{{ imap_user }}</span>
+        <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('fwd').textContent);this.textContent='Copied'">Copy</button></div>
+      {% else %}
+      <div class="copybox"><span class="muted">No inbox connected yet</span><a href="/settings/email" style="font-size:13px;padding:4px 8px">Set up</a></div>
+      {% endif %}
+    </div>
+
+    <div class="msec">
+      <div class="hd"><span>Approval rules</span><a href="/settings/approvals">Edit</a></div>
+      <div class="ds">The first rule a bill's total fits decides who approves it.</div>
+      {{ rules(tiers) }}
+    </div>
+
+    <div class="msec">
+      <div class="hd"><span>Approver emails</span><a href="/settings/email">Edit</a></div>
+      <div class="ds" style="margin-bottom:0">{{ ('Approve and reject links are emailed from ' ~ smtp_from ~ '.') if smtp_on else 'No mail server set, so approval emails are written to the server log.' }}</div>
+    </div>
+
+    <div class="msec">
+      <div class="hd"><span>Accounting sync</span><a href="/settings/integrations/zoho_books">{{ 'Manage' if erp.configured else 'Connect' }}</a></div>
+      <div class="ds">Close your books faster by posting approved bills to your accounting software.</div>
+      <a class="sync" href="/settings/integrations">
+        <span class="lg">Z</span><span style="color:var(--fg)">Zoho Books</span>
+        <span class="st state {{ zoho_st[1] }}">{{ zoho_st[0] }}</span></a>
+    </div>
+  </div>
+</div>
+<script>
+  (() => {
+    const bg = document.getElementById('modal-bg'), close = () => location.href = bg.dataset.back;
+    bg.addEventListener('click', e => { if (e.target === bg) close(); });
+    addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  })();
+</script>

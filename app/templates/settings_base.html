@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+  .set { display:grid; grid-template-columns:190px minmax(0,1fr); gap:40px; align-items:start; margin-top:8px; }
+  .subnav { position:sticky; top:64px; }
+  .subnav .grp { font-size:12px; color:var(--muted); padding:14px 8px 4px; }
+  .subnav .grp:first-child { padding-top:0; }
+  .subnav a { display:block; padding:5px 8px; border-radius:7px; color:var(--sub); font-size:14px; }
+  .subnav a:hover { background:var(--hover); color:var(--fg); }
+  .subnav a.on { background:var(--chip); color:var(--fg); }
+  .set h1 { font-size:28px; margin-bottom:6px; }
+  .lede { color:var(--muted); font-size:14px; margin:0 0 28px; }
+  .sec-title { font-size:17px; font-weight:500; margin:36px 0 4px; }
+  .sec-sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
+  .list { border-radius:12px; box-shadow:var(--shadow); background:var(--card); overflow:hidden; }
+  .item { display:grid; grid-template-columns:minmax(180px,1.1fr) minmax(0,2fr) 140px 130px; gap:16px; align-items:center; padding:14px 18px; color:inherit; border-top:1px solid var(--line-2); }
+  .item:first-child { border-top:0; }
+  a.item:hover { background:var(--hover); color:inherit; }
+  .item .nm { display:flex; align-items:center; gap:12px; font-weight:500; }
+  .item .desc { color:var(--sub); font-size:14px; }
+  .item .cat { color:var(--muted); font-size:14px; }
+  .item .act { text-align:right; font-size:14px; }
+  .lg { width:28px; height:28px; border-radius:7px; display:grid; place-items:center; color:#fff; font-size:12px; font-weight:600; flex:none; }
+  .chips { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .chips button { background:var(--chip); color:var(--sub); padding:4px 12px; font-size:13px; }
+  .chips button:hover { color:var(--fg); background:var(--line); }
+  .chips button.on { background:var(--fg); color:var(--bg); }
+  .soon { color:var(--muted); font-size:13px; }
+  @media (max-width: 960px) {
+    .set { grid-template-columns:1fr; gap:16px; } .subnav { position:static; display:flex; flex-wrap:wrap; gap:4px; } .subnav .grp { display:none; }
+    .item { grid-template-columns:1fr auto; } .item .desc, .item .cat { display:none; }
+  }
+</style>
+{% block settings_head %}{% endblock %}
+{% endblock %}
+{% block content %}
+<div class="set">
+  <nav class="subnav">
+    <div class="grp">Workspace</div>
+    <a href="/settings/integrations" class="{{ 'on' if section == 'integrations' }}">Integrations</a>
+    <div class="grp">Controls</div>
+    <a href="/settings/approvals" class="{{ 'on' if section == 'approvals' }}">Approval rules</a>
+    <div class="grp">Inbox</div>
+    <a href="/settings/email" class="{{ 'on' if section == 'email' }}">Email &amp; notifications</a>
+  </nav>
+  <div>{% block settings %}{% endblock %}</div>
+</div>
+{% endblock %}

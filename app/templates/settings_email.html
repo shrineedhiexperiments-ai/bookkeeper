@@ -1,0 +1,30 @@
+{% extends "settings_base.html" %}
+{% block title %}Email · Bookkeeper{% endblock %}
+{% block settings %}
+<h1>Email &amp; notifications</h1>
+<p class="lede">How bills arrive by email and how approvers are notified.</p>
+
+<div class="sec-title">Bill forwarding email</div>
+<p class="sec-sub">Bills sent or forwarded to this mailbox show up in Bookit automatically.</p>
+<div class="list">
+  <div class="item" style="grid-template-columns:1fr auto">
+    <span>{% if imap_on %}<b style="font-weight:500">{{ imap_user }}</b><br><span class="muted" style="font-size:13px">Checked every few minutes over IMAP</span>
+      {% else %}<span class="muted">No inbox connected. Set <code>IMAP_HOST</code>, <code>IMAP_USER</code> and <code>IMAP_PASSWORD</code> in .env.</span>{% endif %}</span>
+    <span class="state {{ 'ok' if imap_on else 'off' }}">{{ 'Connected' if imap_on else 'Off' }}</span>
+  </div>
+</div>
+
+<div class="sec-title">Forwarding webhook</div>
+<p class="sec-sub">For Postmark, SendGrid, Mailgun or Cloudflare Email Workers: POST the raw message to this URL. The key is your <code>SECRET_KEY</code>.</p>
+<div class="list"><div class="item" style="grid-template-columns:1fr"><code style="background:none;padding:0;font-size:13.5px;word-break:break-all">POST {{ inbound_url }}</code></div></div>
+
+<div class="sec-title">Approver emails</div>
+<p class="sec-sub">Approvers get a link to approve or reject. Links are signed and show a confirmation page first.</p>
+<div class="list">
+  <div class="item" style="grid-template-columns:1fr auto">
+    <span>{% if smtp_on %}Sending from <b style="font-weight:500">{{ smtp_from }}</b>
+      {% else %}<span class="muted">No mail server set, so emails are written to the server log instead. Set <code>SMTP_*</code> in .env to send them.</span>{% endif %}</span>
+    <span class="state {{ 'ok' if smtp_on else 'off' }}">{{ 'Sending' if smtp_on else 'Log only' }}</span>
+  </div>
+</div>
+{% endblock %}

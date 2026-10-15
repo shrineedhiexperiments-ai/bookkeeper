@@ -108,3 +108,14 @@ class VendorRule(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     vendor_key: Mapped[str] = mapped_column(String(255), unique=True)
     default_account: Mapped[str | None] = mapped_column(String(255))
+
+
+class IntegrationSetting(Base):
+    """Key/value settings edited from the Settings page; they override the matching .env values."""
+
+    __tablename__ = "integration_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str | None] = mapped_column(Text)
+    updated_by: Mapped[str | None] = mapped_column(String(255))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

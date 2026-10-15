@@ -1,0 +1,105 @@
+{% extends "settings_base.html" %}
+{% block title %}Zoho Books · Integrations · Bookkeeper{% endblock %}
+{% block settings_head %}
+<style>
+  .crumb { font-size:14px; color:var(--muted); margin-bottom:14px; } .crumb a { color:var(--muted); } .crumb a:hover { color:var(--fg); }
+  .hero { display:flex; align-items:center; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+  .hero .lg { width:48px; height:48px; border-radius:12px; font-size:20px; }
+  .hero h1 { margin:0; }
+  .hero .sub { color:var(--muted); font-size:14px; }
+  .status { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:10px; margin-bottom:22px; font-size:14px; }
+  .status b { display:block; font-weight:500; color:var(--fg); }
+  .status i { width:8px; height:8px; border-radius:50%; margin-top:7px; flex:none; background:currentColor; }
+  .st-ok { background:var(--ok-soft); color:var(--ok); } .st-bad { background:var(--bad-soft); color:var(--bad); }
+  .st-idle { background:var(--warn-soft); color:var(--warn); } .st-none { background:var(--chip); color:var(--sub); }
+  .field { margin-bottom:16px; } .field .lab { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .src { font-size:12px; color:var(--muted); } .src.settings { color:var(--accent); }
+  .hint { font-size:12.5px; color:var(--muted); margin-top:5px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+  .facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; margin-top:4px; }
+  .facts div { padding:4px 16px 4px 0; } .facts b { display:block; font-weight:500; font-size:14px; } .facts span { color:var(--muted); font-size:13px; }
+  details summary { cursor:pointer; font-weight:500; } details ol { padding-left:18px; margin-bottom:0; font-size:14px; } details li { margin:8px 0; }
+  @media (max-width: 760px) { .two, .facts { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+{% block settings %}
+<div class="crumb"><a href="/settings/integrations">Integrations</a> / Zoho Books</div>
+<div class="hero">
+  <span class="lg" style="background:#d83a2e">Z</span>
+  <div><h1>Zoho Books</h1><div class="sub">Accounting · posts approved bills, vendors and attachments</div></div>
+</div>
+
+{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+{% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+
+{% set t = erp.last_test %}
+{% if not erp.configured %}
+  <div class="status st-none"><i></i><div><b>Not connected</b>Add your Zoho credentials below to start posting approved bills.</div></div>
+{% elif t and t.ok %}
+  <div class="status st-ok"><i></i><div><b>Connected</b>{{ t.message }} Checked {{ t.at.replace('T',' ')[:16] }} UTC by {{ t.by }}.</div></div>
+{% elif t %}
+  <div class="status st-bad"><i></i><div><b>Connection failed</b>{{ t.message }}</div></div>
+{% else %}
+  <div class="status st-idle"><i></i><div><b>Credentials saved, not tested yet</b>Use “Test connection” to check them against Zoho.</div></div>
+{% endif %}
+
+{% macro src(f) -%}
+  {%- set st = erp.fields[f] -%}
+  {%- if st.source == 'settings' %}<span class="src settings">Saved here</span>{% elif st.source == 'env' %}<span class="src">From .env</span>{% endif -%}
+{%- endmacro %}
+
+<form method="post" action="/settings/erp" autocomplete="off" class="card">
+  <h3>Connection</h3>
+  <div class="two">
+    <div class="field"><div class="lab"><label for="dc">Data centre</label>{{ src('dc') }}</div>
+      <select name="dc" id="dc">{% for k, v in dcs.items() %}<option value="{{ k }}" {{ 'selected' if erp.zoho.dc == k }}>{{ v }}</option>{% endfor %}</select>
+      <div class="hint">Where your Zoho account is hosted.</div></div>
+    <div class="field"><div class="lab"><label for="organization_id">Organization ID</label>{{ src('organization_id') }}</div>
+      <input name="organization_id" id="organization_id" value="{{ erp.fields.organization_id.value or '' }}" placeholder="e.g. 60012345678">
+      <div class="hint">Zoho Books → Settings → Organization profile.</div></div>
+    <div class="field"><div class="lab"><label for="client_id">Client ID</label>{{ src('client_id') }}</div>
+      <input name="client_id" id="client_id" value="{{ erp.fields.client_id.value or '' }}" placeholder="1000.XXXXXXXX"></div>
+    <div class="field"><div class="lab"><label for="client_secret">Client secret</label>{{ src('client_secret') }}</div>
+      <input type="password" name="client_secret" id="client_secret" autocomplete="new-password"
+             placeholder="{{ '•••••••• saved · leave blank to keep' if erp.fields.client_secret.is_set else 'Paste client secret' }}"></div>
+  </div>
+  <div class="field"><div class="lab"><label for="refresh_token">Refresh token</label>{{ src('refresh_token') }}</div>
+    <input type="password" name="refresh_token" id="refresh_token" autocomplete="new-password"
+           placeholder="{{ '•••••••• saved · leave blank to keep' if erp.fields.refresh_token.is_set else 'Paste refresh token' }}"></div>
+  <div class="field"><div class="lab"><label for="default_expense_account">Fallback expense account</label>{{ src('default_expense_account') }}</div>
+    <input name="default_expense_account" id="default_expense_account" value="{{ erp.fields.default_expense_account.value or '' }}" placeholder="e.g. Other Expenses">
+    <div class="hint">Used when a line's suggested account doesn't exist in Zoho. Must match an account name exactly.</div></div>
+  <div class="row" style="margin-top:8px">
+    <button>Save</button>
+    <button class="secondary" formaction="/settings/erp/test" {{ 'disabled' if not erp.configured }}>Test connection</button>
+    {% if erp.fields.values()|selectattr('source', 'equalto', 'settings')|list %}
+    <button class="ghost" formaction="/settings/erp/disconnect" style="margin-left:auto"
+            onclick="return confirm('Remove the Zoho settings saved here? Values in .env (if any) will apply again.')">Disconnect</button>
+    {% endif %}
+  </div>
+</form>
+
+<div class="card">
+  <h3>What gets posted</h3>
+  <div class="facts">
+    <div><b>Vendor</b><span>Found by name, or created</span></div>
+    <div><b>Bill</b><span>Reference <code>BK-&lt;id&gt;</code></span></div>
+    <div><b>Attachment</b><span>Original PDF or image</span></div>
+    <div><b>Duplicates</b><span>Linked, never re-created</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <details>
+    <summary>How to get Zoho Books credentials</summary>
+    <ol>
+      <li>Open <a href="https://api-console.zoho.com" target="_blank" rel="noopener">api-console.zoho.com</a> and create a <b>Self Client</b>. Copy its client ID and secret.</li>
+      <li>Under <i>Generate Code</i>, use these scopes:<br>
+        <code style="display:inline-block;margin-top:4px;word-break:break-all">ZohoBooks.bills.CREATE,ZohoBooks.bills.READ,ZohoBooks.contacts.CREATE,ZohoBooks.contacts.READ,ZohoBooks.accountants.READ,ZohoBooks.settings.READ</code></li>
+      <li>Exchange the grant code for a refresh token within a few minutes:<br>
+        <code style="display:inline-block;margin-top:4px;word-break:break-all">curl -X POST "https://accounts.zoho.com/oauth/v2/token?code=GRANT_CODE&amp;client_id=ID&amp;client_secret=SECRET&amp;grant_type=authorization_code"</code></li>
+      <li>Paste the client ID, secret, refresh token and organization ID above, save, then <b>Test connection</b>.</li>
+    </ol>
+  </details>
+</div>
+{% endblock %}

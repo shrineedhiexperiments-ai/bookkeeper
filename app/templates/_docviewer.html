@@ -1,0 +1,27 @@
+{# Right-hand document pane with zoom / download, shared by the review wizard and the bill page. #}
+<section class="viewer" aria-label="Bill document">
+  <div class="paper" id="paper">
+    {% if bill.mime_type == 'application/pdf' %}
+      <iframe src="/bills/{{ bill.id }}/file#toolbar=0&navpanes=0" title="{{ bill.file_name }}"></iframe>
+    {% else %}
+      <img src="/bills/{{ bill.id }}/file" alt="{{ bill.file_name }}">
+    {% endif %}
+  </div>
+  <div class="vbar">
+    <span class="fname" title="{{ bill.file_name }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg>{{ bill.file_name }}</span>
+    <a href="/bills/{{ bill.id }}/file" download="{{ bill.file_name }}" title="Download document" aria-label="Download document"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>
+    <i></i>
+    <button type="button" data-z="1" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button type="button" data-z="-1" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+    <button type="button" data-z="0" title="Reset zoom" aria-label="Reset zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7"/><path d="M4 4v4.7h4.7"/></svg></button>
+  </div>
+</section>
+<script>
+  (() => {
+    const paper = document.getElementById('paper'); let z = 1;
+    document.querySelectorAll('.vbar [data-z]').forEach(b => b.onclick = () => {
+      const d = +b.dataset.z; z = d === 0 ? 1 : Math.min(3, Math.max(.5, z + d * .25));
+      paper.style.width = (z * 100) + '%';
+    });
+  })();
+</script>

@@ -25,6 +25,14 @@ and others plug in behind the same connector interface.
 | **Posting** | Finds or creates the vendor, maps accounts and tax rates, creates the bill with `reference_number = BK-<id>`, and attaches the original document. Posting is idempotent: if that vendor + bill number already exists in Zoho, it is linked instead of duplicated. Failures stay visible with a retry button. |
 | **Learning** | When a vendor's bill posts to a single account, that account becomes the vendor's default for future bills. |
 
+## Using the app
+
+- **Home** shows what needs you (approvals, drafts, failed posts), a cash-out forecast by due week, top vendors, a setup checklist and recent activity. New workspaces can load **sample data** (fictional vendors, removable in one click).
+- **Bookit** is the bill list: Inbox, Needs approval, Failed, Posted. Drafts open in a step-by-step review (Vendor → Amount → Categorization → Details → Review) next to the document.
+- **Vendors** are built from your bills: totals, outstanding, usual account and history per vendor.
+- **Search** (`⌘K` or `/`) understands vendors, amounts (`>500`, `100-250`), dates (`oct 2026`), currencies (`INR`) and status (`posted`).
+- Shortcuts: `U` upload, `G` then `H`/`B`/`I`/`A`/`V`/`S` to jump, `?` for the full list.
+
 ## Run it
 
 ```bash
@@ -37,6 +45,8 @@ uvicorn app.main:app --reload
 Run the tests: `python -m pytest -q`. They use a fake ERP, a mocked Zoho API and a mocked Claude endpoint, so they need no credentials.
 
 ### Zoho Books setup
+
+You can enter these in the app under **Integrations** (with a *Test connection* button) or in `.env`. Values saved in the app take precedence.
 
 1. Go to https://api-console.zoho.com and create a **Self Client**.
 2. Generate a grant code with these scopes:
@@ -57,6 +67,10 @@ app/
   extraction.py    Claude bill extraction (structured output, typed schema)
   mailbox.py       IMAP poller + MIME attachment parsing
   notify.py        approval emails, signed action links
+  integrations.py  ERP settings edited from the Integrations page (override .env)
+  insights.py      Home dashboard and vendor aggregates
+  search.py        query language for bill search
+  sample.py        removable sample data for new workspaces
   models.py        Bill, BillLine, AuditEvent, VendorRule
   erp/base.py      ERPConnector interface  ← implement this for Xero / QuickBooks
   erp/zoho_books.py
@@ -74,6 +88,7 @@ Then register it in `app/erp/__init__.py:get_connector` and set `ERP=<name>`. Th
 ## Not production-ready yet
 
 - **Sign-in is a placeholder**: you type an email and get a signed cookie. Put SSO (Google, Microsoft or Zoho) in front of it before exposing it beyond a trusted network.
+- Zoho credentials saved on the Integrations page are stored unencrypted in the database. Encrypt them or use a secrets manager for real use.
 - Single organisation, single ERP per deployment. Multi-tenant needs an `org_id` on every table and connector per org.
 - Extraction and posting run inside the request. For high volume, move them to a worker queue (RQ, Celery or Arq).
 - SQLite by default. Set `DATABASE_URL` to Postgres for real use.

@@ -36,7 +36,7 @@ def test_requires_login(client):
 def test_upload_approve_post_flow(client, erp):
     login(client, "clerk@acme.test")
     r = client.post("/bills/upload", files={"files": ("b.pdf", b"%PDF-1", "application/pdf")})
-    assert r.status_code == 200 and "pending approval" in r.text
+    assert r.status_code == 200 and "pending approval" in r.text.lower()
 
     # clerk is not the approver
     client.post("/bills/1/approve")
@@ -102,3 +102,79 @@ def test_inbound_email_webhook(client, erp):
     with SessionLocal() as db:
         bill = db.get(Bill, 1)
         assert bill.source == "email" and bill.source_ref.startswith("billing@acmepaper.test")
+
+
+def test_search_filters_bills(client):
+    login(client, "ap@acme.test")
+    client.post("/bills/upload", files={"files": ("a.pdf", b"%PDF-1.4 one", "application/pdf")})
+    assert "Acme Paper Co" in client.get("/bills?q=acme").text
+    assert "No bills match" in client.get("/bills?q=zzz-nothing").text
+
+
+def test_review_wizard_walks_draft_to_approval(client):
+    login(client, "clerk@acme.test")
+    client.extracted["value"] = make_extracted(total=1180, number=None)
+    r = client.post("/bills/upload", files={"files": ("w.pdf", b"%PDF-1.4 wizard", "application/pdf")})
+    assert r.url.path == "/bills/1/review/vendor" and "Vendor" in r.text  # drafts open in the wizard
+    client.post("/bills/1/review/vendor", data={"vendor_name": "Acme Paper Co", "vendor_tax_id": "", "go": "next"})
+    client.post("/bills/1/review/amount", data={"total": "1,180.00", "tax_total": "180", "currency": "usd", "go": "next"})
+    client.post("/bills/1/review/categorization", data={"mode": "single", "account": "Office Supplies", "go": "next"})
+    r = client.post("/bills/1/review/details", data={"bill_number": "INV-77", "bill_date": "2026-10-01", "due_date": "", "notes": "", "go": "next"})
+    assert r.url.path == "/bills/1/review/review" and "manager@acme.test" in r.text
+    r = client.post("/bills/1/review/review", data={"go": "submit"})
+    assert "Waiting" in r.text
+    with SessionLocal() as db:
+        b = db.get(Bill, 1)
+        assert b.status == BillStatus.PENDING_APPROVAL and b.bill_number == "INV-77" and b.currency == "USD"
+        assert all(l.account_name == "Office Supplies" for l in b.lines)
+
+
+def test_submit_blocked_until_required_fields(client):
+    login(client, "clerk@acme.test")
+    client.extracted["value"] = make_extracted(number=None)
+    client.post("/bills/upload", files={"files": ("x.pdf", b"%PDF-1.4 x", "application/pdf")})
+    r = client.post("/bills/1/review/review", data={"go": "submit"})
+    assert "Missing bill number" in r.text
+    with SessionLocal() as db:
+        assert db.get(Bill, 1).status == BillStatus.NEEDS_REVIEW
+
+
+def test_delete_draft_and_bulk_delete(client):
+    login(client, "clerk@acme.test")
+    client.extracted["value"] = make_extracted(number=None)
+    for i in range(3):
+        client.post("/bills/upload", files={"files": (f"d{i}.pdf", f"%PDF-1.4 {i}".encode(), "application/pdf")})
+    client.post("/bills/1/delete")
+    client.post("/bills/bulk", data={"action": "delete", "ids": ["2", "3"]})
+    with SessionLocal() as db:
+        assert db.query(Bill).count() == 0
+
+
+def test_home_vendors_and_palette(client):
+    login(client, "manager@acme.test")
+    r = client.post("/bills/upload", files={"files": ("h.pdf", b"%PDF-1.4 home", "application/pdf")})
+    assert "bk_toast" in r.history[0].headers.get("set-cookie", "")  # toast queued for the next page
+    home = client.get("/home").text
+    assert "Waiting on your approval" in home and "Acme Paper Co" in home and "Cash out" in home
+    assert "Acme Paper Co" in client.get("/vendors").text
+    v = client.get("/vendors/acme%20paper%20co")
+    assert v.status_code == 200 and "Total billed" in v.text
+    assert client.get("/vendors/nobody").status_code == 404
+    data = client.get("/api/palette?q=acme").json()
+    assert data["bills"][0]["url"] == "/bills/1" and data["vendors"][0]["title"] == "Acme Paper Co"
+    assert client.get("/", follow_redirects=False).headers["location"] == "/home"
+
+
+def test_sample_data_load_and_remove(client):
+    login(client, "manager@acme.test")
+    client.post("/bills/upload", files={"files": ("real.pdf", b"%PDF-1.4 real", "application/pdf")})
+    r = client.post("/sample/load")
+    assert "exploring sample data" in r.text and "Waiting on your approval" in r.text
+    with SessionLocal() as db:
+        assert db.query(Bill).filter(Bill.source == "sample").count() == 12
+        assert any(b.status == BillStatus.POSTED for b in db.query(Bill).filter(Bill.source == "sample"))
+    assert client.get("/bills/2").status_code == 200  # sample bills open normally
+    assert "Northwind Cloud" in client.get("/vendors").text
+    client.post("/sample/remove")
+    with SessionLocal() as db:
+        assert db.query(Bill).count() == 1  # the real bill stays
