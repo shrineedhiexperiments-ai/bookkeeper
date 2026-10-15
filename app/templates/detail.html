@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Bill {{ bill.id }} · Bookkeeper{% endblock %}
+{% block content %}
+<div class="row" style="margin-bottom:12px">
+  <a href="/bills">← Bills</a>
+  <h2 style="margin:0 8px">Bill #{{ bill.id }} — {{ bill.vendor_name or bill.file_name }}</h2>
+  <span class="pill s-{{ bill.status.value }}">{{ bill.status.value.replace('_',' ') }}</span>
+</div>
+
+{% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+{% if bill.review_reasons %}
+<div class="alert warn"><b>Needs review:</b>
+  <ul style="margin:4px 0 0">{% for r in bill.review_reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% if bill.status.value == 'post_failed' %}
+<div class="alert err"><b>Posting to ERP failed:</b> {{ bill.erp_error }}
+  <form method="post" action="/bills/{{ bill.id }}/retry-post" style="margin-top:8px"><button>Retry posting</button></form>
+</div>
+{% elif bill.status.value == 'posted' %}
+<div class="alert" style="background:#e2f4ea;color:#1d7f4e">Booked in {{ bill.erp }} as bill <b>{{ bill.erp_bill_id }}</b>.
+  {% if bill.erp_error %}<br>Warnings: {{ bill.erp_error }}{% endif %}</div>
+{% endif %}
+
+<div class="split">
+  <div class="card" style="padding:0;overflow:hidden;min-height:600px">
+    {% if bill.mime_type == 'application/pdf' %}
+      <iframe src="/bills/{{ bill.id }}/file" style="width:100%;height:80vh;border:0" title="Bill document"></iframe>
+    {% else %}
+      <img src="/bills/{{ bill.id }}/file" alt="Bill document" style="width:100%">
+    {% endif %}
+  </div>
+
+  <div>
+    {% if can_act %}
+    <div class="card">
+      <div class="row">
+        <strong>Your approval is needed</strong>
+        <span class="muted">step {{ bill.current_step + 1 }} of {{ bill.approvers|length }}</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <form method="post" action="/bills/{{ bill.id }}/approve"><button>Approve</button></form>
+        <form method="post" action="/bills/{{ bill.id }}/reject" class="row" style="flex:1">
+          <input name="reason" placeholder="Reason for rejection" style="flex:1">
+          <button class="danger">Reject</button>
+        </form>
+      </div>
+    </div>
+    {% elif bill.status.value == 'pending_approval' %}
+    <div class="card muted">Waiting on <b>{{ bill.pending_approver }}</b> (step {{ bill.current_step + 1 }} of {{ bill.approvers|length }}).</div>
+    {% endif %}
+
+    <form method="post" action="/bills/{{ bill.id }}/edit" class="card">
+      <fieldset {% if not editable %}disabled{% endif %} style="border:0;padding:0;margin:0">
+      <div class="grid">
+        <div><label>Vendor</label><input name="vendor_name" value="{{ bill.vendor_name or '' }}"></div>
+        <div><label>Vendor tax ID</label><input name="vendor_tax_id" value="{{ bill.vendor_tax_id or '' }}"></div>
+        <div><label>Bill number</label><input name="bill_number" value="{{ bill.bill_number or '' }}"></div>
+        <div><label>Bill date</label><input type="date" name="bill_date" value="{{ bill.bill_date or '' }}"></div>
+        <div><label>Due date</label><input type="date" name="due_date" value="{{ bill.due_date or '' }}"></div>
+        <div><label>Currency</label><input name="currency" maxlength="3" value="{{ bill.currency or '' }}"></div>
+        <div><label>Tax total</label><input name="tax_total" inputmode="decimal" value="{{ bill.tax_total if bill.tax_total is not none else '' }}"></div>
+        <div><label>Total</label><input name="total" inputmode="decimal" value="{{ bill.total if bill.total is not none else '' }}"></div>
+      </div>
+
+      <h3>Line items</h3>
+      <datalist id="accounts">{% for a in accounts %}<option value="{{ a }}">{% endfor %}</datalist>
+      <table>
+        <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Tax %</th><th>Account</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+        {% for l in bill.lines %}
+          <tr>
+            <td><input name="line_description" value="{{ l.description }}"></td>
+            <td><input name="line_quantity" value="{{ l.quantity }}" style="width:70px"></td>
+            <td><input name="line_unit_price" value="{{ l.unit_price }}" style="width:100px"></td>
+            <td><input name="line_tax_rate" value="{{ l.tax_rate if l.tax_rate is not none else '' }}" style="width:70px"></td>
+            <td><input name="line_account" list="accounts" value="{{ l.account_name or '' }}" style="min-width:170px"></td>
+            <td class="num">{{ '{:,.2f}'.format(l.amount) }}</td>
+          </tr>
+        {% endfor %}
+        {% if editable %}
+          <tr>
+            <td><input name="line_description" placeholder="Add line…"></td>
+            <td><input name="line_quantity" style="width:70px"></td>
+            <td><input name="line_unit_price" style="width:100px"></td>
+            <td><input name="line_tax_rate" style="width:70px"></td>
+            <td><input name="line_account" list="accounts"></td>
+            <td></td>
+          </tr>
+        {% endif %}
+        </tbody>
+      </table>
+      <p><label>Notes</label><textarea name="notes" rows="2">{{ bill.notes or '' }}</textarea></p>
+      {% if editable %}
+      <div class="row">
+        <button name="submit" value="1">Save &amp; submit for approval</button>
+        <button class="secondary">Save draft</button>
+      </div>
+      {% endif %}
+      </fieldset>
+    </form>
+
+    {% if editable %}
+    <div class="card row">
+      <form method="post" action="/bills/{{ bill.id }}/submit"><button class="secondary">Submit as-is (I've checked it)</button></form>
+      <form method="post" action="/bills/{{ bill.id }}/reject" class="row">
+        <input type="hidden" name="reason" value="discarded in review"><button class="danger">Discard</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h3 style="margin-top:0">History</h3>
+      <table>
+        {% for e in bill.events|reverse %}
+          <tr><td class="muted" style="white-space:nowrap">{{ e.at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ e.actor }}</td><td><b>{{ e.action.replace('_',' ') }}</b> {{ e.detail or '' }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

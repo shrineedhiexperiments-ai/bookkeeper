@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Bookkeeper{% endblock %}</title>
+<style>
+  :root { --fg:#1d2330; --muted:#677084; --line:#e3e6ec; --bg:#f6f7f9; --card:#fff; --accent:#2457d6; --ok:#1d7f4e; --bad:#b4342b; --warn:#a86400; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif; color:var(--fg); background:var(--bg); }
+  header { display:flex; align-items:center; gap:16px; padding:12px 24px; background:var(--card); border-bottom:1px solid var(--line); }
+  header .brand { font-weight:700; } header nav { display:flex; gap:12px; } header .me { margin-left:auto; color:var(--muted); }
+  a { color:var(--accent); text-decoration:none; }
+  main { max-width:1280px; margin:0 auto; padding:24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; }
+  table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; background:#eef1f6; }
+  .s-posted { background:#e2f4ea; color:var(--ok); } .s-rejected,.s-post_failed { background:#fbe7e5; color:var(--bad); }
+  .s-needs_review { background:#fff1db; color:var(--warn); } .s-pending_approval,.s-approved { background:#e6edfc; color:var(--accent); }
+  input,select,textarea { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; width:100%; background:#fff; }
+  button { font:inherit; padding:7px 14px; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  button.secondary { background:#fff; color:var(--accent); } button.danger { background:var(--bad); border-color:var(--bad); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .split { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); gap:16px; }
+  @media (max-width: 900px) { .split { grid-template-columns:1fr; } }
+  .alert { padding:10px 14px; border-radius:6px; margin-bottom:12px; } .alert.err { background:#fbe7e5; color:var(--bad); } .alert.warn { background:#fff1db; color:var(--warn); }
+  .muted { color:var(--muted); } .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Bookkeeper</span>
+  {% if user %}
+  <nav>
+    <a href="/bills?status=mine">My approvals</a>
+    <a href="/bills?status=needs_review">Needs review</a>
+    <a href="/bills">All bills</a>
+  </nav>
+  <span class="me">{{ user }} · <a href="/logout">sign out</a></span>
+  {% endif %}
+</header>
+<main>{% block content %}{% endblock %}</main>
+</body>
+</html>

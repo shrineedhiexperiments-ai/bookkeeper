@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <form method="post" action="/bills/upload" enctype="multipart/form-data" class="row">
+    <strong>Add bills</strong>
+    <input type="file" name="files" accept="application/pdf,image/*" multiple required style="width:auto">
+    <button>Upload &amp; process</button>
+    <span class="muted">…or email them to your bills inbox.</span>
+  </form>
+</div>
+<div class="card">
+  <div class="row" style="margin-bottom:8px">
+    <span class="muted">Filter:</span>
+    <a href="/bills">all</a>
+    {% for s in statuses %}<a href="/bills?status={{ s.value }}">{{ s.value.replace('_',' ') }}</a>{% endfor %}
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Vendor</th><th>Bill no.</th><th>Date</th><th class="num">Total</th><th>Status</th><th>Waiting on</th><th>Source</th></tr></thead>
+    <tbody>
+    {% for b in bills %}
+      <tr>
+        <td><a href="/bills/{{ b.id }}">{{ b.id }}</a></td>
+        <td><a href="/bills/{{ b.id }}">{{ b.vendor_name or b.file_name }}</a></td>
+        <td>{{ b.bill_number or '—' }}</td>
+        <td>{{ b.bill_date or '—' }}</td>
+        <td class="num">{% if b.total is not none %}{{ b.currency or '' }} {{ '{:,.2f}'.format(b.total) }}{% else %}—{% endif %}</td>
+        <td><span class="pill s-{{ b.status.value }}">{{ b.status.value.replace('_',' ') }}</span></td>
+        <td>{{ b.pending_approver or '' }}</td>
+        <td class="muted">{{ b.source }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8" class="muted">No bills yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

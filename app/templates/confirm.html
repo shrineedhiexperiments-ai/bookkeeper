@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:460px;margin:40px auto">
+  {% if stale %}
+    <p>This approval step has already been handled. Bill is <b>{{ bill.status.value.replace('_',' ') }}</b>.</p>
+  {% else %}
+    <h2 style="margin-top:0">{{ action|capitalize }} bill?</h2>
+    <p>{{ bill.vendor_name }} · #{{ bill.bill_number }} · <b>{{ bill.currency or '' }} {{ '{:,.2f}'.format(bill.total or 0) }}</b></p>
+    <p class="muted">Acting as {{ approver }} (step {{ step + 1 }} of {{ bill.approvers|length }})</p>
+    <form method="post" action="/bills/{{ bill.id }}/email-action">
+      <input type="hidden" name="action" value="{{ action }}"><input type="hidden" name="step" value="{{ step }}">
+      <input type="hidden" name="approver" value="{{ approver }}"><input type="hidden" name="token" value="{{ token }}">
+      {% if action == 'reject' %}<label>Reason</label><textarea name="reason" rows="3"></textarea><p></p>{% endif %}
+      <button class="{{ 'danger' if action == 'reject' else '' }}">Confirm {{ action }}</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
