@@ -1,46 +1,182 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Bookkeeper{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root { --fg:#1d2330; --muted:#677084; --line:#e3e6ec; --bg:#f6f7f9; --card:#fff; --accent:#2457d6; --ok:#1d7f4e; --bad:#b4342b; --warn:#a86400; }
-  * { box-sizing:border-box; }
-  body { margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif; color:var(--fg); background:var(--bg); }
-  header { display:flex; align-items:center; gap:16px; padding:12px 24px; background:var(--card); border-bottom:1px solid var(--line); }
-  header .brand { font-weight:700; } header nav { display:flex; gap:12px; } header .me { margin-left:auto; color:var(--muted); }
-  a { color:var(--accent); text-decoration:none; }
-  main { max-width:1280px; margin:0 auto; padding:24px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; }
-  table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em; }
-  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
-  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; background:#eef1f6; }
-  .s-posted { background:#e2f4ea; color:var(--ok); } .s-rejected,.s-post_failed { background:#fbe7e5; color:var(--bad); }
-  .s-needs_review { background:#fff1db; color:var(--warn); } .s-pending_approval,.s-approved { background:#e6edfc; color:var(--accent); }
-  input,select,textarea { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; width:100%; background:#fff; }
-  button { font:inherit; padding:7px 14px; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
-  button.secondary { background:#fff; color:var(--accent); } button.danger { background:var(--bad); border-color:var(--bad); }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
-  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
-  .split { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); gap:16px; }
-  @media (max-width: 900px) { .split { grid-template-columns:1fr; } }
-  .alert { padding:10px 14px; border-radius:6px; margin-bottom:12px; } .alert.err { background:#fbe7e5; color:var(--bad); } .alert.warn { background:#fff1db; color:var(--warn); }
-  .muted { color:var(--muted); } .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  :root {
+    --paper: #F2F5EF;      /* ledger pad */
+    --sheet: #FFFFFF;
+    --rule: #CBD8C6;       /* green column rule */
+    --rule-soft: #E2EADF;
+    --ink: #18263A;        /* blue-black writing ink */
+    --muted: #5B6862;
+    --pen: #2443A6;        /* fountain-pen blue: actions */
+    --pen-soft: #E6EBF8;
+    --green: #22724A;      /* posted / approved */
+    --green-soft: #E1F0E6;
+    --red: #B02F28;        /* failed / rejected / overdue */
+    --red-soft: #F8E4E1;
+    --ochre: #946200;      /* needs review */
+    --ochre-soft: #FBEFD5;
+    --focus: #2443A6;
+    --radius-s: 4px;
+    --radius-m: 8px;
+    --font: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #121A17; --sheet: #19231F; --rule: #2E3D36; --rule-soft: #24302B;
+      --ink: #E4EBE6; --muted: #98A69F; --pen: #8CA6F2; --pen-soft: #1F2A45;
+      --green: #6CC593; --green-soft: #183326; --red: #F08A80; --red-soft: #3A1C1A;
+      --ochre: #E3B34E; --ochre-soft: #352A12; --focus: #8CA6F2;
+      color-scheme: dark;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font: 15px/1.5 var(--font); color: var(--ink); background: var(--paper);
+         font-feature-settings: "tnum" 1; }
+  a { color: var(--pen); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+  h1, h2, h3 { margin: 0; line-height: 1.2; letter-spacing: -0.01em; }
+  h1 { font-size: 26px; font-weight: 700; }
+  h2 { font-size: 17px; font-weight: 700; }
+  h3 { font-size: 15px; font-weight: 700; }
+  p { margin: 0; }
+  .muted { color: var(--muted); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---------- shell ---------- */
+  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .rail { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 4px;
+          padding: 20px 12px; border-right: 1px solid var(--rule); background: var(--paper); }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 18px; font-weight: 800; font-size: 17px; color: var(--ink); }
+  .brand:hover { text-decoration: none; }
+  .brand svg { flex: none; }
+  .queues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .queues a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px;
+              border-radius: var(--radius-s); color: var(--ink); font-weight: 500; }
+  .queues a:hover { background: var(--rule-soft); text-decoration: none; }
+  .queues a[aria-current="page"] { background: var(--sheet); box-shadow: inset 3px 0 0 var(--pen); font-weight: 700; }
+  .queues .count { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .queues .count.hot { color: var(--sheet); background: var(--pen); border-radius: 999px; padding: 0 7px; font-weight: 700; }
+  .queues .count.warn { color: var(--ochre); font-weight: 700; }
+  .queues .count.bad { color: var(--red); font-weight: 700; }
+  .queues li.gap { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); }
+  .me { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .me a { display: inline-block; margin-top: 2px; }
+  .page { padding: 28px clamp(16px, 3vw, 40px) 64px; min-width: 0; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .rail { position: static; height: auto; flex-direction: row; align-items: center; gap: 8px;
+            padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+    .brand { padding: 0 8px 0 0; }
+    .brand span { display: none; }
+    .queues { flex-direction: row; gap: 4px; }
+    .queues a { white-space: nowrap; padding: 6px 10px; }
+    .queues li.gap { margin: 0; padding: 0; border: 0; }
+    .queues a[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--pen); }
+    .me { margin: 0 0 0 8px; padding: 0; border: 0; white-space: nowrap; }
+    .me .who { display: none; }
+    .page { padding: 20px 16px 48px; }
+  }
+
+  /* ---------- shared pieces ---------- */
+  .sheet { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--radius-m); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 8px 16px;
+         font: 600 14px/1 var(--font); border-radius: var(--radius-s); border: 1px solid var(--pen);
+         background: var(--pen); color: #fff; cursor: pointer; white-space: nowrap; }
+  .btn:hover { filter: brightness(1.08); text-decoration: none; }
+  .btn:disabled { opacity: .55; cursor: progress; }
+  .btn.quiet { background: transparent; color: var(--pen); border-color: var(--rule); }
+  .btn.quiet:hover { background: var(--pen-soft); filter: none; }
+  .btn.approve { background: var(--green); border-color: var(--green); }
+  .btn.danger { background: var(--red); border-color: var(--red); }
+  .btn.danger.quiet { background: transparent; color: var(--red); border-color: var(--rule); }
+  .btn.danger.quiet:hover { background: var(--red-soft); }
+  @media (prefers-color-scheme: dark) { .btn:not(.quiet) { color: #0F1513; } }
+
+  input, select, textarea { font: inherit; color: var(--ink); width: 100%; padding: 7px 9px; min-height: 38px;
+         border: 1px solid var(--rule); border-radius: var(--radius-s); background: var(--sheet); }
+  input:hover, textarea:hover { border-color: var(--muted); }
+  input:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: -1px; border-color: transparent; }
+  input:disabled, textarea:disabled { background: transparent; border-color: transparent; padding-left: 0; color: var(--ink); }
+  label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600;
+          white-space: nowrap; background: var(--rule-soft); color: var(--muted); }
+  .pill::first-letter { text-transform: uppercase; }
+  .s-posted { background: var(--green-soft); color: var(--green); }
+  .s-rejected, .s-post_failed { background: var(--red-soft); color: var(--red); }
+  .s-needs_review { background: var(--ochre-soft); color: var(--ochre); }
+  .s-pending_approval, .s-approved { background: var(--pen-soft); color: var(--pen); }
+
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: var(--radius-m);
+            border: 1px solid; margin-bottom: 16px; }
+  .notice.err { background: var(--red-soft); color: var(--red); border-color: color-mix(in srgb, var(--red) 30%, transparent); }
+  .notice.ok { background: var(--green-soft); color: var(--green); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+  .notice > div { flex: 1; min-width: 0; }
+  .notice b { font-weight: 700; }
+
+  /* ---------- rubber stamps (routing slip, confirm pages) ---------- */
+  .stamp { display: inline-block; padding: 3px 9px 2px; border: 2.5px double currentColor; border-radius: 3px;
+           font: 800 13px/1.2 var(--font); text-transform: uppercase; letter-spacing: .1em;
+           transform: rotate(-5deg); opacity: .9; mix-blend-mode: multiply; }
+  @media (prefers-color-scheme: dark) { .stamp { mix-blend-mode: normal; } }
+  .stamp.green { color: var(--green); }
+  .stamp.red { color: var(--red); }
+  .stamp.pen { color: var(--pen); }
+  .stamp.press { animation: press .45s cubic-bezier(.2, .9, .3, 1.3) both; }
+  @keyframes press { from { transform: rotate(-5deg) scale(1.6); opacity: 0; } to { transform: rotate(-5deg) scale(1); opacity: .9; } }
+  @media (prefers-reduced-motion: reduce) { .stamp.press { animation: none; } }
+
+  .center-card { max-width: 440px; margin: 10vh auto 0; padding: 32px; }
 </style>
+{% block head %}{% endblock %}
 </head>
 <body>
-<header>
-  <span class="brand">Bookkeeper</span>
-  {% if user %}
-  <nav>
-    <a href="/bills?status=mine">My approvals</a>
-    <a href="/bills?status=needs_review">Needs review</a>
-    <a href="/bills">All bills</a>
+{% macro logo(size=26) -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 32 32" aria-hidden="true">
+  <rect x="3" y="2" width="26" height="28" rx="3" fill="var(--sheet)" stroke="var(--ink)" stroke-width="2"/>
+  <path d="M3 9h26M3 16h26M3 23h26" stroke="var(--rule)" stroke-width="1.5"/>
+  <path d="M20 2v28" stroke="var(--red)" stroke-width="1.5"/>
+  <path d="M8 19.5l3 3 6-7" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+{%- endmacro %}
+{% if user %}
+<div class="shell">
+  <nav class="rail" aria-label="Queues">
+    <a class="brand" href="/bills">{{ logo() }}<span>Bookkeeper</span></a>
+    <ul class="queues">
+      {% set c = counts or {} %}
+      {% for key, title in QUEUES %}
+        {% set n = c.get(key or 'all', 0) %}
+        {% set current = (active_queue is defined and active_queue == key) %}
+        <li class="{{ 'gap' if key is none }}">
+          <a href="/bills{{ '?status=' ~ key if key }}" {% if current %}aria-current="page"{% endif %}>
+            <span>{{ title }}</span>
+            {% if n %}<span class="count {{ 'hot' if key == 'mine' else 'warn' if key == 'needs_review' else 'bad' if key == 'post_failed' else '' }}">{{ n }}</span>{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+    <div class="me"><span class="who">Signed in as<br>{{ user }}<br></span><a href="/logout">Sign out</a></div>
   </nav>
-  <span class="me">{{ user }} · <a href="/logout">sign out</a></span>
-  {% endif %}
-</header>
-<main>{% block content %}{% endblock %}</main>
+  <main class="page">{% block content %}{% endblock %}</main>
+</div>
+{% else %}
+<main class="page">{% block bare %}{% endblock %}</main>
+{% endif %}
+{% block scripts %}{% endblock %}
 </body>
 </html>

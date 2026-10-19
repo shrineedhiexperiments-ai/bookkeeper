@@ -1,37 +1,144 @@
 {% extends "base.html" %}
+{% set active_queue = status %}
+{% set title = QUEUE_TITLES.get(status, 'All bills') %}
+{% block title %}{{ title }} · Bookkeeper{% endblock %}
+{% block head %}
+<style>
+  .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .head .muted { font-size: 15px; }
+
+  .drop { position: relative; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 18px 20px; margin-bottom: 24px;
+          border: 1.5px dashed var(--rule); border-radius: var(--radius-m); background: var(--sheet); transition: border-color .15s, background .15s; }
+  .drop.over { border-color: var(--pen); background: var(--pen-soft); }
+  .drop .icon { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--pen-soft); color: var(--pen); }
+  .drop .words { flex: 1; min-width: 220px; }
+  .drop .words strong { display: block; font-weight: 700; }
+  .drop .words span { color: var(--muted); font-size: 14px; }
+  .drop .words code { font: inherit; color: var(--ink); font-weight: 600; }
+  .drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; min-height: 0; }
+  .drop .btn { position: relative; z-index: 1; pointer-events: none; }
+  .drop.busy { pointer-events: none; }
+  .drop.busy .icon svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .drop.busy .icon svg { animation: none; } }
+
+  .ledger { width: 100%; border-collapse: collapse; background: var(--sheet); }
+  .ledger-wrap { border: 1px solid var(--rule); border-radius: var(--radius-m); overflow: hidden; }
+  .ledger th { position: sticky; top: 0; z-index: 1; background: var(--sheet); text-align: left; font-size: 13px; font-weight: 600;
+               color: var(--muted); padding: 10px 14px; border-bottom: 2px solid var(--rule); white-space: nowrap; }
+  .ledger .c-date, .ledger .c-due { white-space: nowrap; }
+  .ledger td { padding: 12px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: middle; }
+  .ledger tr:last-child td { border-bottom: 0; }
+  .ledger th.num, .ledger td.num { text-align: right; border-left: 1px solid var(--rule-soft); }
+  .ledger tbody tr { cursor: pointer; }
+  .ledger tbody tr:hover td { background: color-mix(in srgb, var(--paper) 70%, var(--sheet)); }
+  .ledger .vendor a { color: var(--ink); font-weight: 600; }
+  .ledger .vendor small { display: block; color: var(--muted); font-size: 13px; }
+  .ledger .amount { font-weight: 600; }
+  .ledger .cur { color: var(--muted); font-weight: 500; font-size: 13px; margin-right: 4px; }
+  .overdue { color: var(--red); font-weight: 600; }
+  .src { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 13px; }
+
+  .empty { padding: 48px 24px; text-align: center; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .ledger thead { display: none; }
+    .ledger, .ledger tbody, .ledger tr, .ledger td { display: block; }
+    .ledger tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; border-bottom: 1px solid var(--rule-soft); }
+    .ledger td { padding: 0; border: 0 !important; }
+    .ledger td.num { border-left: 0; }
+    .ledger .c-number, .ledger .c-date, .ledger .c-source { display: none; }
+    .ledger .c-due { font-size: 13px; color: var(--muted); }
+    .ledger .c-waiting { grid-column: 1 / -1; font-size: 13px; }
+    .ledger .c-waiting:empty { display: none; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-  <form method="post" action="/bills/upload" enctype="multipart/form-data" class="row">
-    <strong>Add bills</strong>
-    <input type="file" name="files" accept="application/pdf,image/*" multiple required style="width:auto">
-    <button>Upload &amp; process</button>
-    <span class="muted">…or email them to your bills inbox.</span>
-  </form>
+<div class="head">
+  <h1>{{ title }}</h1>
+  <span class="muted">{{ bills|length }} bill{{ '' if bills|length == 1 else 's' }}</span>
 </div>
-<div class="card">
-  <div class="row" style="margin-bottom:8px">
-    <span class="muted">Filter:</span>
-    <a href="/bills">all</a>
-    {% for s in statuses %}<a href="/bills?status={{ s.value }}">{{ s.value.replace('_',' ') }}</a>{% endfor %}
+
+<form class="drop" id="drop" method="post" action="/bills/upload" enctype="multipart/form-data">
+  <span class="icon" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+  </span>
+  <div class="words" id="drop-words">
+    <strong>Drop bills here</strong>
+    <span>PDFs or photos, several at once. {% if inbox %}You can also forward them to <code>{{ inbox }}</code>.{% else %}You can also email them to your bills inbox.{% endif %}</span>
   </div>
-  <table>
-    <thead><tr><th>#</th><th>Vendor</th><th>Bill no.</th><th>Date</th><th class="num">Total</th><th>Status</th><th>Waiting on</th><th>Source</th></tr></thead>
-    <tbody>
-    {% for b in bills %}
-      <tr>
-        <td><a href="/bills/{{ b.id }}">{{ b.id }}</a></td>
-        <td><a href="/bills/{{ b.id }}">{{ b.vendor_name or b.file_name }}</a></td>
-        <td>{{ b.bill_number or '—' }}</td>
-        <td>{{ b.bill_date or '—' }}</td>
-        <td class="num">{% if b.total is not none %}{{ b.currency or '' }} {{ '{:,.2f}'.format(b.total) }}{% else %}—{% endif %}</td>
-        <td><span class="pill s-{{ b.status.value }}">{{ b.status.value.replace('_',' ') }}</span></td>
-        <td>{{ b.pending_approver or '' }}</td>
-        <td class="muted">{{ b.source }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="8" class="muted">No bills yet.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+  <label class="sr-only" for="files">Choose bill files</label>
+  <input id="files" type="file" name="files" accept="application/pdf,image/*" multiple required>
+  <span class="btn">Choose files</span>
+</form>
+
+{% if bills %}
+<div class="ledger-wrap">
+<table class="ledger">
+  <thead>
+    <tr>
+      <th>Vendor</th>
+      <th class="c-number">Bill no.</th>
+      <th class="c-date">Bill date</th>
+      <th>Due</th>
+      <th class="num">Amount</th>
+      <th>Status</th>
+      <th>Waiting on</th>
+      <th class="c-source">From</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for b in bills %}
+    <tr data-href="/bills/{{ b.id }}">
+      <td class="vendor"><a href="/bills/{{ b.id }}">{{ b.vendor_name or b.file_name }}</a>
+        {% if not b.vendor_name %}<small>Not read yet</small>{% endif %}</td>
+      <td class="c-number">{{ b.bill_number or '—' }}</td>
+      <td class="c-date">{{ b.bill_date.strftime('%d %b %Y') if b.bill_date else '—' }}</td>
+      <td class="c-due">{% if b.due_date %}
+          {% if is_overdue(b) %}<span class="overdue">{{ b.due_date.strftime('%d %b') }} · overdue</span>
+          {% else %}{{ b.due_date.strftime('%d %b %Y') }}{% endif %}
+        {% else %}—{% endif %}</td>
+      <td class="num amount">{% if b.total is not none %}<span class="cur">{{ b.currency or '' }}</span>{{ b.total|money(b.currency) }}{% else %}—{% endif %}</td>
+      <td><span class="pill s-{{ b.status.value }}">{{ b.status|status_label }}</span></td>
+      <td class="c-waiting">{% if b.pending_approver %}{{ 'You' if b.pending_approver|lower == user else b.pending_approver|person }}{% endif %}</td>
+      <td class="c-source"><span class="src">
+        {% if b.source == 'email' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email
+        {% else %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>Upload{% endif %}
+      </span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
 </div>
+{% else %}
+<div class="sheet empty">{{ EMPTY_STATES.get(status, EMPTY_STATES[None]) }}</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const form = document.getElementById("drop");
+  const input = document.getElementById("files");
+  const words = document.getElementById("drop-words");
+  const send = () => {
+    if (!input.files.length) return;
+    const n = input.files.length;
+    form.classList.add("busy");
+    words.innerHTML = "<strong>Reading " + n + " bill" + (n === 1 ? "" : "s") + "…</strong><span>This takes a few seconds per bill. Keep this tab open.</span>";
+    form.submit();
+  };
+  input.addEventListener("change", send);
+  ["dragenter", "dragover"].forEach(t => form.addEventListener(t, e => { e.preventDefault(); form.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(t => form.addEventListener(t, () => form.classList.remove("over")));
+  form.addEventListener("drop", e => { e.preventDefault(); input.files = e.dataTransfer.files; send(); });
+
+  document.querySelectorAll("tr[data-href]").forEach(tr => tr.addEventListener("click", e => {
+    if (e.target.closest("a")) return;
+    location.href = tr.dataset.href;
+  }));
+})();
+</script>
 {% endblock %}

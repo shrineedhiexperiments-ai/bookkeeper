@@ -9,10 +9,10 @@ from datetime import date
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from . import mailbox, notify, workflow
+from . import mailbox, notify, ui, workflow
 from .config import get_settings
 from .db import get_db, init_db
 from .erp import ERPError, get_connector
@@ -22,6 +22,8 @@ from .workflow import WorkflowError
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
+ui.install(TEMPLATES.env)
+TEMPLATES.env.globals["erp_name"] = lambda: get_settings().erp.replace("_", " ").title()
 EDITABLE = {BillStatus.RECEIVED, BillStatus.NEEDS_REVIEW}
 
 
@@ -96,6 +98,16 @@ def _redirect(bill_id: int, error: str | None = None) -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
 
 
+def _queue_counts(db: Session, user: str) -> dict:
+    """Bill counts per status for the queue rail, plus 'mine' (waiting on this user) and 'all'."""
+    counts = {status.value: n for status, n in db.execute(select(Bill.status, func.count()).group_by(Bill.status))}
+    counts["all"] = sum(counts.values())
+    pending = db.execute(select(Bill.approvers, Bill.current_step).where(Bill.status == BillStatus.PENDING_APPROVAL))
+    counts["mine"] = sum(1 for approvers, step in pending
+                         if step < len(approvers or []) and approvers[step].lower() == user)
+    return counts
+
+
 @app.get("/")
 def root():
     return RedirectResponse("/bills", status_code=303)
@@ -114,6 +126,7 @@ def list_bills(request: Request, status: str | None = None, db: Session = Depend
         bills = list(db.scalars(q))
     return TEMPLATES.TemplateResponse(request, "list.html", {
         "user": user, "bills": bills, "status": status, "statuses": list(BillStatus),
+        "counts": _queue_counts(db, user), "inbox": get_settings().imap.get("user"),
     })
 
 
@@ -149,6 +162,7 @@ def bill_detail(request: Request, bill_id: int, error: str | None = None, db: Se
         "user": user, "bill": bill, "error": error, "editable": editable,
         "accounts": _accounts() if editable else [],
         "can_act": bill.status == BillStatus.PENDING_APPROVAL and (bill.pending_approver or "").lower() == user,
+        "counts": _queue_counts(db, user),
     })
 
 
@@ -279,7 +293,7 @@ def email_action_confirm(request: Request, bill_id: int, action: str, step: int,
 
 
 @app.post("/bills/{bill_id}/email-action")
-def email_action(bill_id: int, action: str = Form(...), step: int = Form(...), approver: str = Form(...),
+def email_action(request: Request, bill_id: int, action: str = Form(...), step: int = Form(...), approver: str = Form(...),
                  token: str = Form(...), reason: str = Form(""), db: Session = Depends(get_db)):
     if not notify.verify(bill_id, step, approver, action, token):
         raise HTTPException(403, "Invalid link")
@@ -297,7 +311,7 @@ def email_action(bill_id: int, action: str = Form(...), step: int = Form(...), a
     except WorkflowError as exc:
         db.rollback()
         raise HTTPException(409, str(exc))
-    return HTMLResponse(f"<p style='font-family:sans-serif'>Done — bill {bill.id} is now <b>{bill.status.value}</b>.</p>")
+    return TEMPLATES.TemplateResponse(request, "done.html", {"user": None, "bill": bill, "action": action})
 
 
 # --------------------------------------------------------------------------- inbound email webhook
