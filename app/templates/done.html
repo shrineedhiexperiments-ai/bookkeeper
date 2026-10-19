@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Done · Bookkeeper{% endblock %}
+{% block bare %}
+{% set st = bill.status.value %}
+<div class="sheet center-card" style="text-align:center">
+  <div style="margin:4px 0 22px">
+    {% if st == 'rejected' %}<span class="stamp red press" style="font-size:20px">Rejected</span>
+    {% elif st == 'post_failed' %}<span class="stamp red press" style="font-size:20px">Approved</span>
+    {% else %}<span class="stamp green press" style="font-size:20px">{{ 'Posted' if st == 'posted' else 'Approved' }}</span>{% endif %}
+  </div>
+  <p style="font-weight:600">{{ bill.vendor_name }}{% if bill.bill_number %}, bill {{ bill.bill_number }}{% endif %}</p>
+  <p class="muted" style="margin-top:6px">
+    {% if st == 'posted' %}Fully approved and posted to the books as {{ bill.erp_bill_id }}.
+    {% elif st == 'pending_approval' %}Your approval is recorded. It now goes to {{ bill.pending_approver }}.
+    {% elif st == 'rejected' %}The bill is rejected and won't be booked.
+    {% elif st == 'post_failed' %}Approved, but booking failed. Someone on the finance team will retry it.
+    {% else %}The bill is now {{ bill.status|status_label }}.{% endif %}
+  </p>
+  <p style="margin-top:20px"><a href="/bills/{{ bill.id }}">Open the bill</a></p>
+</div>
+{% endblock %}

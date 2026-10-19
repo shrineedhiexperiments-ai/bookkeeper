@@ -1,11 +1,14 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="card" style="max-width:380px;margin:60px auto">
-  <h2 style="margin-top:0">Sign in</h2>
+{% block title %}Sign in · Bookkeeper{% endblock %}
+{% block bare %}
+<div class="sheet center-card">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;font-weight:800;font-size:18px">{{ logo(30) }} Bookkeeper</div>
+  <h1 style="font-size:22px;margin-bottom:6px">Sign in</h1>
+  <p class="muted" style="margin-bottom:20px">Use the email your approval requests go to.</p>
   <form method="post" action="/login">
-    <label>Work email</label>
-    <input name="email" type="email" required autofocus>
-    <p><button>Continue</button></p>
+    <label for="email">Work email</label>
+    <input id="email" name="email" type="email" autocomplete="email" required autofocus>
+    <button class="btn" style="width:100%;margin-top:16px">Continue</button>
   </form>
 </div>
 {% endblock %}
